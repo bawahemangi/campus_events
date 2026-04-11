@@ -82,14 +82,26 @@ LOGIN_URL = '/users/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/users/login/'
 
-# Email settings (configure with real credentials)
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'your-email@gmail.com'          # Change this
-EMAIL_HOST_PASSWORD = 'your-app-password'          # Change this (use App Password)
-DEFAULT_FROM_EMAIL = 'Campus Events <your-email@gmail.com>'
+# ── EMAIL (Gmail SMTP) ────────────────────────────────────────────────
+# For testing without real email:
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# For production — swap to SMTP and fill in credentials:
+# EMAIL_BACKEND    = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST       = 'smtp.gmail.com'
+# EMAIL_PORT       = 587
+# EMAIL_USE_TLS    = True
+# EMAIL_HOST_USER  = 'your-email@gmail.com'       # <-- change this
+# EMAIL_HOST_PASSWORD = 'your-16-char-app-password'  # Gmail App Password
+# DEFAULT_FROM_EMAIL = 'CampusEvents <your-email@gmail.com>'
+DEFAULT_FROM_EMAIL = 'CampusEvents <noreply@campusevents.local>'
 
-# For development/demo without real email - use console backend
-# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# ── RAZORPAY PAYMENT GATEWAY ─────────────────────────────────────────
+# Sign up free at https://dashboard.razorpay.com
+# Use TEST keys (rzp_test_...) during development — no real money charged
+RAZORPAY_KEY_ID     = 'rzp_test_XXXXXXXXXXXXXXXX'   # <-- paste your test key
+RAZORPAY_KEY_SECRET = 'XXXXXXXXXXXXXXXXXXXXXXXX'    # <-- paste your test secret
+RAZORPAY_CURRENCY   = 'INR'
+
+# Site URL for email links
+SITE_URL = 'http://127.0.0.1:8000'
+SITE_NAME = 'CampusEvents'

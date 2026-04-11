@@ -7,8 +7,8 @@ from django.contrib import messages
 from django.db.models import Count, Q, Avg
 from django.utils import timezone
 from django.http import JsonResponse
-from events.models import Event, Registration, Feedback, Notification
-from events.utils import get_event_recommendations, create_notification
+from events.models import Event, Registration, Feedback, Notification, Payment
+from events.utils import get_event_recommendations, create_notification, send_event_approved_email, send_event_rejected_email
 from users.models import CustomUser
 
 
@@ -125,6 +125,12 @@ def admin_dashboard(request):
     total_organizers = CustomUser.objects.filter(role='organizer').count()
     total_registrations = Registration.objects.count()
     total_attended = Registration.objects.filter(attended=True).count()
+
+    # Payment stats
+    from django.db.models import Sum
+    total_revenue = Payment.objects.filter(status='completed').aggregate(
+        total=Sum('amount'))['total'] or 0
+    paid_events_count = Event.objects.filter(is_paid=True, status='approved').count()
     
     # Most popular category
     category_stats = (
@@ -162,6 +168,8 @@ def admin_dashboard(request):
         'recent_registrations': recent_registrations,
         'upcoming_events': upcoming_events,
         'notifications': notifications,
+        'total_revenue': total_revenue,
+        'paid_events_count': paid_events_count,
     }
     return render(request, 'dashboard/admin.html', context)
 
@@ -177,15 +185,17 @@ def approve_event(request, pk):
     event.status = 'approved'
     event.rejection_reason = ''
     event.save()
-    
-    # Notify organizer
+
+    # Notify organizer (in-app + email)
     create_notification(
         event.organizer,
         f'Event Approved: {event.title}',
         f'Your event "{event.title}" has been approved and is now live!',
-        'approval'
+        'approval',
+        link=f'/events/{event.pk}/'
     )
-    
+    send_event_approved_email(event)
+
     messages.success(request, f'"{event.title}" has been approved.')
     return redirect('admin_dashboard')
 
@@ -202,14 +212,16 @@ def reject_event(request, pk):
     event.status = 'rejected'
     event.rejection_reason = reason
     event.save()
-    
+
     create_notification(
         event.organizer,
         f'Event Rejected: {event.title}',
         f'Your event "{event.title}" was rejected. Reason: {reason}',
-        'rejection'
+        'rejection',
+        link=f'/dashboard/organizer/'
     )
-    
+    send_event_rejected_email(event)
+
     messages.warning(request, f'"{event.title}" has been rejected.')
     return redirect('admin_dashboard')
 

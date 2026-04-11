@@ -122,8 +122,12 @@ def register_for_event(request, pk):
     if Registration.objects.filter(event=event, student=request.user).exists():
         messages.warning(request, 'You are already registered for this event.')
         return redirect('event_detail', pk=pk)
-    
-    # Create registration
+
+    # Redirect to payment page for paid events
+    if event.is_paid and event.registration_fee > 0:
+        return redirect('initiate_payment', event_pk=pk)
+
+    # Create registration (free event)
     registration = Registration(event=event, student=request.user)
     registration.generate_qr_code()
     registration.save()
@@ -365,6 +369,7 @@ def notifications_api(request):
         'title': n.title,
         'message': n.message,
         'type': n.notification_type,
+        'link': n.link,
         'created_at': n.created_at.strftime('%b %d, %I:%M %p'),
     } for n in notifications]
     return JsonResponse({'notifications': data, 'count': len(data)})
@@ -377,3 +382,12 @@ def mark_notification_read(request, pk):
     notification.is_read = True
     notification.save()
     return JsonResponse({'success': True})
+
+
+@login_required
+def all_notifications(request):
+    """Full notifications page."""
+    notifications = request.user.notifications.all()[:50]
+    # Mark all as read
+    request.user.notifications.filter(is_read=False).update(is_read=True)
+    return render(request, 'events/notifications.html', {'notifications': notifications})

@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}Notifications — CampusEvents{% endblock %}
+{% block extra_css %}
+<style>
+  .notif-card { border-left: 4px solid transparent; transition: background .15s; }
+  .notif-card:hover { background: #f8f9ff; }
+  .notif-card.type-registration { border-color: #6c47ff; }
+  .notif-card.type-payment      { border-color: #06d6a0; }
+  .notif-card.type-reminder     { border-color: #ff6b6b; }
+  .notif-card.type-approval     { border-color: #06d6a0; }
+  .notif-card.type-rejection    { border-color: #ff6b6b; }
+  .notif-card.type-certificate  { border-color: #ffd93d; }
+  .notif-card.type-general      { border-color: #9ca3af; }
+  .notif-icon { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+      <h1><i class="fa fa-bell me-2"></i>Notifications</h1>
+      <p class="mb-0 opacity-75">All your recent notifications</p>
+    </div>
+  </div>
+</div>
+
+<div class="container pb-5">
+  <div class="col-lg-8 mx-auto">
+    {% for notif in notifications %}
+    {% with t=notif.notification_type %}
+    <div class="card notif-card type-{{ t }} mb-3 px-1">
+      <div class="card-body d-flex gap-3 align-items-start">
+        <!-- Icon -->
+        <div class="notif-icon
+          {% if t == 'registration' %}bg-primary bg-opacity-10 text-primary
+          {% elif t == 'payment' %}{% else %}{% endif %}
+          " style="
+          background:{% if t == 'registration' %}#6c47ff22{% elif t == 'payment' %}#06d6a022{% elif t == 'reminder' %}#ff6b6b22{% elif t == 'approval' %}#06d6a022{% elif t == 'rejection' %}#ff6b6b22{% elif t == 'certificate' %}#ffd93d33{% else %}#6b728022{% endif %};
+          color:{% if t == 'registration' %}#6c47ff{% elif t == 'payment' %}#06d6a0{% elif t == 'reminder' %}#ff6b6b{% elif t == 'approval' %}#06d6a0{% elif t == 'rejection' %}#ff6b6b{% elif t == 'certificate' %}#b8860b{% else %}#6b7280{% endif %}">
+          {% if t == 'registration' %}<i class="fa fa-calendar-check"></i>
+          {% elif t == 'payment' %}<i class="fa fa-credit-card"></i>
+          {% elif t == 'reminder' %}<i class="fa fa-clock"></i>
+          {% elif t == 'approval' %}<i class="fa fa-check-circle"></i>
+          {% elif t == 'rejection' %}<i class="fa fa-times-circle"></i>
+          {% elif t == 'certificate' %}<i class="fa fa-certificate"></i>
+          {% else %}<i class="fa fa-bell"></i>{% endif %}
+        </div>
+
+        <div class="flex-grow-1">
+          <div class="d-flex justify-content-between align-items-start">
+            <div class="fw-bold">{{ notif.title }}</div>
+            <div class="text-muted small ms-2 text-nowrap">{{ notif.created_at|date:"M d, g:i A" }}</div>
+          </div>
+          <div class="text-muted mt-1">{{ notif.message }}</div>
+          {% if notif.link %}
+          <a href="{{ notif.link }}" class="btn btn-outline-primary btn-sm mt-2">
+            <i class="fa fa-arrow-right me-1"></i>View
+          </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endwith %}
+    {% empty %}
+    <div class="text-center py-5">
+      <i class="fa fa-bell-slash fa-4x text-muted mb-3"></i>
+      <h5 class="text-muted">No notifications yet</h5>
+      <p class="text-muted">You'll be notified about registrations, payments, reminders, and more.</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

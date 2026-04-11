@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block title %}Analytics — CampusEvents{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1><i class="fa fa-chart-bar me-2"></i>Analytics & Reports</h1>
+    <p class="mb-0 opacity-75">Platform-wide event and registration insights</p>
+  </div>
+</div>
+<div class="container pb-5">
+  <div class="row g-4">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><i class="fa fa-chart-pie me-2 text-primary"></i>Registrations by Category</div>
+        <div class="card-body"><canvas id="catChart" height="260"></canvas></div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><i class="fa fa-chart-line me-2 text-primary"></i>Monthly Registrations</div>
+        <div class="card-body"><canvas id="monthChart" height="260"></canvas></div>
+      </div>
+    </div>
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header"><i class="fa fa-chart-bar me-2 text-primary"></i>Top 10 Events by Registrations</div>
+        <div class="card-body"><canvas id="eventChart" height="150"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category Table -->
+  <div class="card mt-4">
+    <div class="card-header"><i class="fa fa-table me-2 text-primary"></i>Category Breakdown</div>
+    <div class="table-responsive">
+      <table class="table mb-0">
+        <thead><tr><th>Category</th><th>Registrations</th><th>Share</th></tr></thead>
+        <tbody>
+          {% for row in category_data %}
+          {% with total=total_registrations %}
+          <tr>
+            <td><span class="category-badge cat-{{ row.event__category }}">{{ row.event__category|title }}</span></td>
+            <td class="fw-semibold">{{ row.count }}</td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="progress flex-grow-1" style="height:8px">
+                  <div class="progress-bar bg-primary" style="width:{% if total %}{% widthratio row.count total 100 %}{% else %}0{% endif %}%"></div>
+                </div>
+                <span class="text-muted small">{% if total %}{% widthratio row.count total 100 %}{% else %}0{% endif %}%</span>
+              </div>
+            </td>
+          </tr>
+          {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const catData   = {{ category_data|safe }};
+const eventData = {{ event_data|safe }};
+const monthData = {{ monthly_data|safe }};
+
+const catColors = ['#6c47ff','#ff6b6b','#06d6a0','#ffd93d','#3f51b5','#9b59b6'];
+
+if (catData.length) {
+  new Chart(document.getElementById('catChart'), {
+    type: 'doughnut',
+    data: {
+      labels: catData.map(d => d.event__category.charAt(0).toUpperCase() + d.event__category.slice(1)),
+      datasets: [{ data: catData.map(d => d.count), backgroundColor: catColors, borderWidth: 0 }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+  });
+}
+
+if (eventData.length) {
+  new Chart(document.getElementById('eventChart'), {
+    type: 'bar',
+    data: {
+      labels: eventData.map(d => d.title.length > 20 ? d.title.substring(0,20)+'…' : d.title),
+      datasets: [{ label: 'Registrations', data: eventData.map(d => d.reg_count), backgroundColor: '#6c47ffcc', borderRadius: 6 }]
+    },
+    options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+  });
+}
+
+if (monthData.length) {
+  new Chart(document.getElementById('monthChart'), {
+    type: 'line',
+    data: {
+      labels: monthData.map(d => {
+        const date = new Date(d.month);
+        return date.toLocaleString('default', { month: 'short', year: 'numeric' });
+      }),
+      datasets: [{
+        label: 'Registrations',
+        data: monthData.map(d => d.count),
+        borderColor: '#6c47ff', backgroundColor: '#6c47ff22',
+        tension: 0.4, fill: true, pointBackgroundColor: '#6c47ff'
+      }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+  });
+}
+</script>
+{% endblock %}

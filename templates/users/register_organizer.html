@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block title %}Register as Organizer — CampusEvents{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1><i class="fa fa-star me-2"></i>Organizer Registration</h1>
+    <p class="mb-0 opacity-75">Register as a Club Head to create and manage events</p>
+  </div>
+</div>
+<div class="container py-2">
+  <div class="row justify-content-center">
+    <div class="col-lg-7">
+      <div class="card">
+        <div class="card-header">
+          <i class="fa fa-user-tie me-2 text-warning"></i>Create Organizer Account
+        </div>
+        <div class="card-body p-4">
+          <form method="POST" novalidate>
+            {% csrf_token %}
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">First Name *</label>
+                <input type="text" name="first_name" class="form-control" placeholder="First Name" required value="{{ form.first_name.value|default:'' }}">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Last Name *</label>
+                <input type="text" name="last_name" class="form-control" placeholder="Last Name" required value="{{ form.last_name.value|default:'' }}">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Username *</label>
+                <input type="text" name="username" class="form-control" placeholder="Choose a username" required value="{{ form.username.value|default:'' }}">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Email *</label>
+                <input type="email" name="email" class="form-control" placeholder="Email Address" required value="{{ form.email.value|default:'' }}">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Club / Department *</label>
+                <input type="text" name="department" class="form-control" placeholder="e.g. Coding Club" required value="{{ form.department.value|default:'' }}">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Phone</label>
+                <input type="text" name="phone" class="form-control" placeholder="Phone Number" value="{{ form.phone.value|default:'' }}">
+              </div>
+              <div class="col-12">
+                <label class="form-label">About your club</label>
+                <textarea name="bio" class="form-control" rows="2" placeholder="Brief description of your club...">{{ form.bio.value|default:'' }}</textarea>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Password *</label>
+                <input type="password" name="password1" class="form-control" placeholder="Create password" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Confirm Password *</label>
+                <input type="password" name="password2" class="form-control" placeholder="Confirm password" required>
+              </div>
+            </div>
+            {% if form.errors %}
+            <div class="alert alert-danger mt-3">
+              {% for field, errors in form.errors.items %}{% for error in errors %}<div>{{ error }}</div>{% endfor %}{% endfor %}
+            </div>
+            {% endif %}
+            <div class="d-grid mt-4">
+              <button type="submit" class="btn btn-warning btn-lg fw-bold">
+                <i class="fa fa-star me-2"></i>Create Organizer Account
+              </button>
+            </div>
+          </form>
+          <hr>
+          <p class="text-center text-muted mb-0">
+            Already have an account? <a href="{% url 'login' %}" class="text-primary fw-semibold">Sign in</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

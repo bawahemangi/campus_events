@@ -1,0 +1,217 @@
+{% extends 'base.html' %}
+{% block title %}Admin Dashboard — CampusEvents{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1><i class="fa fa-shield-halved me-2"></i>Admin Dashboard</h1>
+    <p class="mb-0 opacity-75">Platform overview and event management</p>
+  </div>
+</div>
+
+<div class="container pb-5">
+  <!-- Stat Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-2">
+      <div class="stat-card stat-purple text-center">
+        <div class="stat-icon mb-1"><i class="fa fa-calendar"></i></div>
+        <div class="stat-value">{{ total_events }}</div>
+        <div class="stat-label">Events</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card stat-amber text-center">
+        <div class="stat-icon mb-1"><i class="fa fa-clock"></i></div>
+        <div class="stat-value">{{ pending_count }}</div>
+        <div class="stat-label">Pending</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card stat-teal text-center">
+        <div class="stat-icon mb-1"><i class="fa fa-graduation-cap"></i></div>
+        <div class="stat-value">{{ total_students }}</div>
+        <div class="stat-label">Students</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card stat-coral text-center">
+        <div class="stat-icon mb-1"><i class="fa fa-star"></i></div>
+        <div class="stat-value">{{ total_organizers }}</div>
+        <div class="stat-label">Organizers</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card stat-indigo text-center">
+        <div class="stat-icon mb-1"><i class="fa fa-users"></i></div>
+        <div class="stat-value">{{ total_registrations }}</div>
+        <div class="stat-label">Registrations</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card stat-navy text-center">
+        <div class="stat-icon mb-1"><i class="fa fa-check-double"></i></div>
+        <div class="stat-value">{{ total_attended }}</div>
+        <div class="stat-label">Attended</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Pending Approvals -->
+    <div class="col-lg-7">
+      <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="fa fa-clock me-2 text-warning"></i>Pending Approvals</span>
+          {% if pending_count > 0 %}
+          <span class="badge bg-warning text-dark rounded-pill">{{ pending_count }}</span>
+          {% endif %}
+        </div>
+        <div class="card-body p-0">
+          {% if pending_events %}
+          {% for event in pending_events %}
+          <div class="d-flex align-items-center gap-3 p-3 {% if not forloop.last %}border-bottom{% endif %}">
+            <div style="width:44px;height:44px;border-radius:12px;background:#ffd93d22;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">
+              {% if event.category == 'technical' %}💻{% elif event.category == 'cultural' %}🎭{% elif event.category == 'sports' %}🏆{% else %}📅{% endif %}
+            </div>
+            <div class="flex-grow-1 min-w-0">
+              <div class="fw-bold">{{ event.title }}</div>
+              <div class="text-muted small">
+                By {{ event.organizer.get_full_name|default:event.organizer.username }} •
+                {{ event.date|date:"M d, Y" }} • {{ event.venue }}
+              </div>
+              <span class="category-badge cat-{{ event.category }}">{{ event.get_category_display }}</span>
+            </div>
+            <div class="d-flex flex-column gap-1">
+              <a href="{% url 'approve_event' event.pk %}" class="btn btn-success btn-sm">
+                <i class="fa fa-check me-1"></i>Approve
+              </a>
+              <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal"
+                data-bs-target="#rejectModal{{ event.pk }}">
+                <i class="fa fa-times me-1"></i>Reject
+              </button>
+              <a href="{% url 'event_detail' event.pk %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fa fa-eye"></i>
+              </a>
+            </div>
+          </div>
+
+          <!-- Reject Modal -->
+          <div class="modal fade" id="rejectModal{{ event.pk }}" tabindex="-1">
+            <div class="modal-dialog"><div class="modal-content rounded-3">
+              <div class="modal-header border-0"><h5 class="modal-title fw-bold">Reject: {{ event.title }}</h5></div>
+              <form method="POST" action="{% url 'reject_event' event.pk %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                  <label class="form-label fw-semibold">Reason for Rejection</label>
+                  <textarea name="reason" class="form-control" rows="3" placeholder="Provide a reason..." required></textarea>
+                </div>
+                <div class="modal-footer border-0">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                  <button type="submit" class="btn btn-danger">Reject Event</button>
+                </div>
+              </form>
+            </div></div>
+          </div>
+          {% endfor %}
+          {% else %}
+          <div class="text-center py-4 text-muted">
+            <i class="fa fa-check-circle fa-2x mb-2 text-success"></i><br>All events reviewed!
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Recent Registrations -->
+      <div class="card">
+        <div class="card-header"><i class="fa fa-list me-2 text-primary"></i>Recent Registrations</div>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead><tr><th>Student</th><th>Event</th><th>Date</th><th>Status</th></tr></thead>
+            <tbody>
+              {% for reg in recent_registrations %}
+              <tr>
+                <td class="fw-semibold small">{{ reg.student.get_full_name|default:reg.student.username }}</td>
+                <td class="small">{{ reg.event.title|truncatechars:25 }}</td>
+                <td class="text-muted small">{{ reg.registered_at|date:"M d" }}</td>
+                <td><span class="badge {% if reg.attended %}bg-success{% else %}bg-secondary{% endif %}">
+                  {% if reg.attended %}Attended{% else %}Registered{% endif %}
+                </span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Analytics -->
+    <div class="col-lg-5">
+      <!-- Category Distribution -->
+      <div class="card mb-4">
+        <div class="card-header"><i class="fa fa-chart-pie me-2 text-primary"></i>Registrations by Category</div>
+        <div class="card-body"><canvas id="categoryChart" height="200"></canvas></div>
+      </div>
+
+      <!-- Most Popular Events -->
+      <div class="card mb-4">
+        <div class="card-header"><i class="fa fa-fire me-2 text-coral"></i>Most Popular Events</div>
+        <div class="card-body p-0">
+          {% for event in popular_events %}
+          <div class="d-flex align-items-center gap-3 p-3 {% if not forloop.last %}border-bottom{% endif %}">
+            <div class="fw-bold text-muted" style="width:24px">{{ forloop.counter }}</div>
+            <div class="flex-grow-1 min-w-0">
+              <div class="fw-semibold small text-truncate">{{ event.title }}</div>
+              <div class="text-muted" style="font-size:.75rem">{{ event.date|date:"M d, Y" }}</div>
+            </div>
+            <span class="badge bg-primary rounded-pill">{{ event.reg_count }}</span>
+          </div>
+          {% empty %}
+          <div class="text-center text-muted py-3">No events yet</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Upcoming Events -->
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="fa fa-calendar-check me-2 text-primary"></i>Upcoming</span>
+          <a href="{% url 'analytics' %}" class="btn btn-outline-primary btn-sm">Full Analytics</a>
+        </div>
+        <div class="card-body p-0">
+          {% for event in upcoming_events %}
+          <div class="d-flex align-items-center gap-2 p-3 {% if not forloop.last %}border-bottom{% endif %}">
+            <div class="flex-grow-1 min-w-0">
+              <div class="fw-semibold small text-truncate">{{ event.title }}</div>
+              <div class="text-muted" style="font-size:.75rem">{{ event.date|date:"M d" }} • {{ event.venue }}</div>
+            </div>
+            <span class="badge bg-success rounded-pill">{{ event.registered_count }}</span>
+          </div>
+          {% empty %}
+          <div class="text-center text-muted py-3">No upcoming events</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const catData = {{ category_stats|safe }};
+if (catData.length) {
+  const catColors = { technical:'#6c47ff', cultural:'#ff6b6b', sports:'#06d6a0', workshop:'#ffd93d', seminar:'#3f51b5', other:'#9b59b6' };
+  new Chart(document.getElementById('categoryChart'), {
+    type: 'doughnut',
+    data: {
+      labels: catData.map(d => d.event__category.charAt(0).toUpperCase() + d.event__category.slice(1)),
+      datasets: [{
+        data: catData.map(d => d.count),
+        backgroundColor: catData.map(d => catColors[d.event__category] || '#6b7280'),
+        borderWidth: 0
+      }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+  });
+}
+</script>
+{% endblock %}

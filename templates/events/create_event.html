@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% block title %}{% if event %}Edit Event{% else %}Create Event{% endif %} — CampusEvents{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1><i class="fa fa-{% if event %}edit{% else %}plus-circle{% endif %} me-2"></i>
+      {% if event %}Edit: {{ event.title }}{% else %}Create New Event{% endif %}
+    </h1>
+    <p class="mb-0 opacity-75">{% if event %}Update event details — will be re-submitted for approval{% else %}Fill in the details — admin will review before publishing{% endif %}</p>
+  </div>
+</div>
+<div class="container pb-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-body p-4">
+          <form method="POST" enctype="multipart/form-data" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+              {% for error in form.non_field_errors %}<div><i class="fa fa-exclamation-circle me-2"></i>{{ error }}</div>{% endfor %}
+            </div>
+            {% endif %}
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label">Event Title *</label>
+                <input type="text" name="title" class="form-control form-control-lg" placeholder="e.g. Annual Tech Fest 2024"
+                  value="{{ form.title.value|default:'' }}" required>
+                {% if form.title.errors %}<div class="text-danger small">{{ form.title.errors.0 }}</div>{% endif %}
+              </div>
+              <div class="col-12">
+                <label class="form-label">Description *</label>
+                <textarea name="description" class="form-control" rows="4" placeholder="Describe your event in detail...">{{ form.description.value|default:'' }}</textarea>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Category *</label>
+                <select name="category" class="form-select">
+                  {% for val, label in form.fields.category.choices %}
+                  <option value="{{ val }}" {% if form.category.value == val %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Date *</label>
+                <input type="date" name="date" class="form-control" required value="{{ form.date.value|default:'' }}">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Venue *</label>
+                <input type="text" name="venue" class="form-control" placeholder="e.g. Main Auditorium"
+                  value="{{ form.venue.value|default:'' }}" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Start Time *</label>
+                <input type="time" name="start_time" class="form-control" required value="{{ form.start_time.value|default:'' }}">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">End Time *</label>
+                <input type="time" name="end_time" class="form-control" required value="{{ form.end_time.value|default:'' }}">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Max Capacity *</label>
+                <input type="number" name="max_capacity" class="form-control" placeholder="100" min="1" max="10000"
+                  value="{{ form.max_capacity.value|default:'100' }}" required>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Event Poster / Banner</label>
+                <input type="file" name="poster" class="form-control" accept="image/*" onchange="previewImage(this)">
+                <div id="imagePreview" class="mt-2"></div>
+                {% if event and event.poster %}
+                <div class="mt-2">
+                  <img src="{{ event.poster.url }}" height="100" class="rounded-2 me-2">
+                  <small class="text-muted">Current poster — upload new to replace</small>
+                </div>
+                {% endif %}
+              </div>
+              <div class="col-12">
+                <label class="form-label">Certificate Text</label>
+                <textarea name="certificate_template" class="form-control" rows="2"
+                  placeholder="Use {student_name}, {event_name}, {event_date} as placeholders">{{ form.certificate_template.value|default:'' }}</textarea>
+                <div class="form-text">Variables: <code>{student_name}</code> <code>{event_name}</code> <code>{event_date}</code></div>
+              </div>
+            </div>
+
+            <div class="d-flex gap-3 mt-4">
+              <button type="submit" class="btn btn-primary btn-lg px-5">
+                <i class="fa fa-{% if event %}save{% else %}paper-plane{% endif %} me-2"></i>
+                {% if event %}Save Changes{% else %}Submit for Approval{% endif %}
+              </button>
+              <a href="{% url 'organizer_dashboard' %}" class="btn btn-outline-secondary btn-lg">Cancel</a>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="alert alert-info mt-3">
+        <i class="fa fa-info-circle me-2"></i>
+        <strong>Venue Clash Detection:</strong> The system will automatically check if your event clashes with another event at the same venue and time.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function previewImage(input) {
+  const preview = document.getElementById('imagePreview');
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      preview.innerHTML = `<img src="${e.target.result}" height="120" class="rounded-2 border" style="max-width:100%">`;
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+</script>
+{% endblock %}

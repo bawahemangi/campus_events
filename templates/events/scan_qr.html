@@ -1,0 +1,193 @@
+{% extends 'base.html' %}
+{% block title %}Attendance — {{ event.title }}{% endblock %}
+{% block extra_css %}
+<style>
+  #qr-region { border-radius: 12px; overflow: hidden; }
+  .attendance-list { max-height: 500px; overflow-y: auto; }
+  .reg-row { transition: background .3s; }
+  .reg-row.attended { background: #06d6a010; }
+  .scan-status { min-height: 60px; border-radius: 12px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; font-weight:600; }
+  .scan-success { background: #06d6a020; color: #0ab07a; border: 2px solid #06d6a0; }
+  .scan-error   { background: #ff6b6b20; color: #e74c3c; border: 2px solid #ff6b6b44; }
+  .scan-info    { background: #6c47ff15; color: var(--primary); border: 2px solid #6c47ff44; }
+  .counter-pill { background: var(--primary); color: #fff; border-radius: 20px; padding: 4px 14px; font-weight: 700; font-size:.9rem; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1><i class="fa fa-qrcode me-2"></i>Attendance Scanner</h1>
+    <p class="mb-0 opacity-75">{{ event.title }} — {{ event.date|date:"M d, Y" }} | {{ event.venue }}</p>
+  </div>
+</div>
+<div class="container pb-5">
+  <div class="row g-4">
+    <!-- QR Scanner -->
+    <div class="col-lg-5">
+      <div class="card">
+        <div class="card-header">
+          <i class="fa fa-camera me-2 text-primary"></i>Scan QR Code
+        </div>
+        <div class="card-body">
+          <div id="qr-region" class="mb-3"></div>
+          <div id="scan-result" class="scan-status scan-info">
+            <i class="fa fa-camera me-2"></i>Point camera at student's QR code
+          </div>
+          <hr>
+          <div class="text-center">
+            <span class="counter-pill" id="attendedCount">{{ attended_count }}</span>
+            <span class="text-muted ms-2">of {{ total_count }} registered attended</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manual token entry -->
+      <div class="card mt-3">
+        <div class="card-body">
+          <h6 class="fw-bold mb-2"><i class="fa fa-keyboard me-2 text-primary"></i>Manual Entry</h6>
+          <div class="input-group">
+            <input type="text" id="manualToken" class="form-control" placeholder="Paste QR token...">
+            <button class="btn btn-primary" onclick="processToken(document.getElementById('manualToken').value)">
+              Mark
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Registration List -->
+    <div class="col-lg-7">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="fa fa-list me-2 text-primary"></i>Registration List</span>
+          <span class="text-muted small">{{ total_count }} registered</span>
+        </div>
+        <div class="attendance-list">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Roll No.</th>
+                <th>Registered</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="attendanceTable">
+              {% for reg in registrations %}
+              <tr class="reg-row {% if reg.attended %}attended{% endif %}" id="row-{{ reg.pk }}">
+                <td>
+                  <div class="fw-semibold">{{ reg.student.get_full_name|default:reg.student.username }}</div>
+                  <div class="text-muted small">{{ reg.student.email }}</div>
+                </td>
+                <td class="text-muted small">{{ reg.student.roll_number|default:"—" }}</td>
+                <td class="text-muted small">{{ reg.registered_at|date:"M d" }}</td>
+                <td>
+                  <span class="badge {% if reg.attended %}bg-success{% else %}bg-secondary{% endif %}" id="badge-{{ reg.pk }}">
+                    {% if reg.attended %}Present{% else %}Absent{% endif %}
+                  </span>
+                </td>
+                <td>
+                  {% if not reg.attended %}
+                  <button class="btn btn-success btn-sm" onclick="markManual({{ reg.pk }})">
+                    <i class="fa fa-check"></i>
+                  </button>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+const csrfToken = '{{ csrf_token }}';
+let scannerRunning = false;
+
+function showResult(msg, type) {
+  const el = document.getElementById('scan-result');
+  el.className = `scan-status scan-${type}`;
+  el.innerHTML = msg;
+  if (type === 'success' || type === 'error') {
+    setTimeout(() => {
+      el.className = 'scan-status scan-info';
+      el.innerHTML = '<i class="fa fa-camera me-2"></i>Point camera at student\'s QR code';
+    }, 3000);
+  }
+}
+
+function processToken(raw) {
+  // QR data format: CAMPUS_EVENT|TOKEN|event_id|student_id
+  let token = raw;
+  if (raw.includes('|')) {
+    const parts = raw.split('|');
+    token = parts[1] || raw;
+  }
+  if (!token.trim()) return;
+
+  fetch('/events/attendance/mark/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+    body: JSON.stringify({ token: token.trim() })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      showResult(`<i class="fa fa-check-circle me-2"></i>${data.message}`, 'success');
+      // Update count
+      const countEl = document.getElementById('attendedCount');
+      countEl.textContent = parseInt(countEl.textContent) + 1;
+    } else if (data.already_marked) {
+      showResult(`<i class="fa fa-info-circle me-2"></i>${data.message}`, 'info');
+    } else {
+      showResult(`<i class="fa fa-times-circle me-2"></i>${data.error || 'Invalid QR code'}`, 'error');
+    }
+    document.getElementById('manualToken').value = '';
+  })
+  .catch(() => showResult('<i class="fa fa-wifi me-2"></i>Connection error', 'error'));
+}
+
+function markManual(regId) {
+  fetch(`/events/attendance/manual/${regId}/`, {
+    method: 'GET',
+    headers: { 'X-CSRFToken': csrfToken }
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      document.getElementById('row-' + regId).classList.add('attended');
+      const badge = document.getElementById('badge-' + regId);
+      if (badge) { badge.className = 'badge bg-success'; badge.textContent = 'Present'; }
+      const countEl = document.getElementById('attendedCount');
+      countEl.textContent = parseInt(countEl.textContent) + 1;
+      showResult(`<i class="fa fa-check me-2"></i>Marked ${data.student} as present`, 'success');
+    }
+  });
+}
+
+// Start QR Scanner
+const html5QrcodeScanner = new Html5Qrcode("qr-region");
+html5QrcodeScanner.start(
+  { facingMode: "environment" },
+  { fps: 10, qrbox: { width: 250, height: 250 } },
+  (decodedText) => {
+    if (!scannerRunning) {
+      scannerRunning = true;
+      processToken(decodedText);
+      setTimeout(() => { scannerRunning = false; }, 2000);
+    }
+  },
+  (errorMessage) => {}
+).catch(err => {
+  document.getElementById('qr-region').innerHTML =
+    '<div class="alert alert-warning text-center"><i class="fa fa-camera me-2"></i>Camera not available. Use manual entry above.</div>';
+});
+</script>
+{% endblock %}

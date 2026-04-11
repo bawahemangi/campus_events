@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% block title %}Organizer Dashboard — CampusEvents{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="container d-flex justify-content-between align-items-center flex-wrap gap-3">
+    <div>
+      <h1><i class="fa fa-star me-2 text-warning"></i>Organizer Dashboard</h1>
+      <p class="mb-0 opacity-75">{{ user.get_full_name|default:user.username }} — {{ user.department }}</p>
+    </div>
+    <a href="{% url 'create_event' %}" class="btn btn-light fw-bold">
+      <i class="fa fa-plus me-2"></i>Create New Event
+    </a>
+  </div>
+</div>
+
+<div class="container pb-5">
+  <!-- Stats -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="stat-card stat-purple text-center">
+        <div class="stat-icon mb-1"><i class="fa fa-calendar"></i></div>
+        <div class="stat-value">{{ total_events }}</div>
+        <div class="stat-label">Total Events</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card stat-teal text-center">
+        <div class="stat-icon mb-1"><i class="fa fa-check-circle"></i></div>
+        <div class="stat-value">{{ approved_events }}</div>
+        <div class="stat-label">Approved</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card stat-amber text-center">
+        <div class="stat-icon mb-1"><i class="fa fa-users"></i></div>
+        <div class="stat-value">{{ total_participants }}</div>
+        <div class="stat-label">Registrations</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card stat-coral text-center">
+        <div class="stat-icon mb-1"><i class="fa fa-clock"></i></div>
+        <div class="stat-value">{{ pending_events }}</div>
+        <div class="stat-label">Pending</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Events Table -->
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span><i class="fa fa-calendar-days me-2 text-primary"></i>My Events</span>
+      <a href="{% url 'create_event' %}" class="btn btn-primary btn-sm"><i class="fa fa-plus me-1"></i>New Event</a>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>Event</th>
+            <th>Date & Venue</th>
+            <th>Status</th>
+            <th>Registrations</th>
+            <th>Attendance</th>
+            <th>Rating</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in events_with_stats %}
+          {% with e=item.event %}
+          <tr>
+            <td>
+              <div class="fw-bold">{{ e.title }}</div>
+              <span class="category-badge cat-{{ e.category }}">{{ e.get_category_display }}</span>
+            </td>
+            <td class="text-muted small">
+              <div>{{ e.date|date:"M d, Y" }}</div>
+              <div>{{ e.venue }}</div>
+            </td>
+            <td>
+              <span class="badge {% if e.status == 'approved' %}bg-success{% elif e.status == 'pending' %}bg-warning text-dark{% elif e.status == 'rejected' %}bg-danger{% else %}bg-secondary{% endif %}">
+                {{ e.get_status_display }}
+              </span>
+              {% if e.status == 'rejected' and e.rejection_reason %}
+              <div class="text-danger" style="font-size:.72rem">{{ e.rejection_reason|truncatechars:40 }}</div>
+              {% endif %}
+            </td>
+            <td>
+              <div class="fw-semibold">{{ item.registered }}/{{ e.max_capacity }}</div>
+              <div class="progress mt-1" style="height:4px;width:80px">
+                <div class="progress-bar bg-primary" style="width:{% widthratio item.registered e.max_capacity 100 %}%"></div>
+              </div>
+            </td>
+            <td>
+              <span class="fw-semibold">{{ item.attended }}</span>
+              {% if item.registered > 0 %}
+              <span class="text-muted small">({% widthratio item.attended item.registered 100 %}%)</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if item.avg_rating > 0 %}
+              <span class="text-warning"><i class="fa fa-star"></i> {{ item.avg_rating }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              <div class="d-flex gap-1">
+                <a href="{% url 'event_detail' e.pk %}" class="btn btn-outline-secondary btn-sm" title="View"><i class="fa fa-eye"></i></a>
+                <a href="{% url 'edit_event' e.pk %}" class="btn btn-outline-primary btn-sm" title="Edit"><i class="fa fa-edit"></i></a>
+                {% if e.status == 'approved' %}
+                <a href="{% url 'scan_qr' e.pk %}" class="btn btn-success btn-sm" title="Attendance"><i class="fa fa-qrcode"></i></a>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endwith %}
+          {% empty %}
+          <tr><td colspan="7" class="text-center text-muted py-4">
+            <i class="fa fa-calendar-plus fa-2x mb-2"></i><br>
+            No events yet. <a href="{% url 'create_event' %}">Create your first event!</a>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Analytics Chart -->
+  {% if events_with_stats %}
+  <div class="row g-4 mt-2">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><i class="fa fa-chart-bar me-2 text-primary"></i>Registrations per Event</div>
+        <div class="card-body"><canvas id="regChart" height="220"></canvas></div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><i class="fa fa-chart-pie me-2 text-primary"></i>Events by Category</div>
+        <div class="card-body"><canvas id="catChart" height="220"></canvas></div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+{% if events_with_stats %}
+const labels = [{% for item in events_with_stats %}"{{ item.event.title|truncatechars:15 }}",{% endfor %}];
+const regs   = [{% for item in events_with_stats %}{{ item.registered }},{% endfor %}];
+const atts   = [{% for item in events_with_stats %}{{ item.attended }},{% endfor %}];
+
+new Chart(document.getElementById('regChart'), {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [
+      { label: 'Registered', data: regs, backgroundColor: '#6c47ffcc', borderRadius: 6 },
+      { label: 'Attended',   data: atts, backgroundColor: '#06d6a0cc', borderRadius: 6 }
+    ]
+  },
+  options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
+});
+
+const cats = {};
+{% for item in events_with_stats %}cats["{{ item.event.get_category_display }}"] = (cats["{{ item.event.get_category_display }}"] || 0) + 1;{% endfor %}
+
+new Chart(document.getElementById('catChart'), {
+  type: 'doughnut',
+  data: {
+    labels: Object.keys(cats),
+    datasets: [{ data: Object.values(cats), backgroundColor: ['#6c47ff','#ff6b6b','#06d6a0','#ffd93d','#3f51b5','#9b59b6'], borderWidth: 0 }]
+  },
+  options: { responsive: true, plugins: { legend: { position: 'right' } } }
+});
+{% endif %}
+</script>
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block title %}Leaderboard — CampusEvents{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1><i class="fa fa-trophy me-2 text-warning"></i>Participation Leaderboard</h1>
+    <p class="mb-0 opacity-75">Top students ranked by event participation points</p>
+  </div>
+</div>
+<div class="container pb-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <!-- Top 3 Podium -->
+      {% if students_data|length >= 3 %}
+      <div class="row g-3 mb-4 align-items-end justify-content-center">
+        <!-- 2nd -->
+        <div class="col-4 text-center">
+          <div class="card py-3" style="border-top: 4px solid #c0c0c0">
+            <div class="mb-2" style="font-size:2rem">🥈</div>
+            <div class="fw-bold">{{ students_data.1.student.get_full_name|default:students_data.1.student.username }}</div>
+            <div class="text-muted small">{{ students_data.1.student.department }}</div>
+            <div class="mt-2 fw-bold" style="color:#c0c0c0;font-size:1.2rem">{{ students_data.1.points }} pts</div>
+          </div>
+        </div>
+        <!-- 1st -->
+        <div class="col-4 text-center">
+          <div class="card py-3" style="border-top: 4px solid #ffd700;background:linear-gradient(135deg,#fff9e6,#fff)">
+            <div class="mb-2" style="font-size:2.5rem">🥇</div>
+            <div class="fw-bold fs-5">{{ students_data.0.student.get_full_name|default:students_data.0.student.username }}</div>
+            <div class="text-muted small">{{ students_data.0.student.department }}</div>
+            <div class="mt-2 fw-bold" style="color:#b8860b;font-size:1.4rem">{{ students_data.0.points }} pts</div>
+          </div>
+        </div>
+        <!-- 3rd -->
+        <div class="col-4 text-center">
+          <div class="card py-3" style="border-top: 4px solid #cd7f32">
+            <div class="mb-2" style="font-size:2rem">🥉</div>
+            <div class="fw-bold">{{ students_data.2.student.get_full_name|default:students_data.2.student.username }}</div>
+            <div class="text-muted small">{{ students_data.2.student.department }}</div>
+            <div class="mt-2 fw-bold" style="color:#cd7f32;font-size:1.2rem">{{ students_data.2.points }} pts</div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Full Table -->
+      <div class="card">
+        <div class="card-header"><i class="fa fa-list-ol me-2 text-primary"></i>Rankings</div>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead><tr><th>Rank</th><th>Student</th><th>Department</th><th>Events Attended</th><th>Points</th></tr></thead>
+            <tbody>
+              {% for item in students_data %}
+              <tr {% if item.student == user %}style="background:#6c47ff08;font-weight:600"{% endif %}>
+                <td>
+                  {% if item.rank == 1 %}🥇{% elif item.rank == 2 %}🥈{% elif item.rank == 3 %}🥉{% else %}
+                  <span class="text-muted">#{{ item.rank }}</span>{% endif %}
+                </td>
+                <td>
+                  <div class="fw-semibold">{{ item.student.get_full_name|default:item.student.username }}</div>
+                  {% if item.student == user %}<span class="badge bg-primary" style="font-size:.65rem">You</span>{% endif %}
+                </td>
+                <td class="text-muted small">{{ item.student.department|default:"—" }}</td>
+                <td><span class="badge bg-secondary rounded-pill">{{ item.events_attended }}</span></td>
+                <td>
+                  <span class="fw-bold" style="color:var(--primary)">{{ item.points }}</span>
+                  <span class="text-muted small"> pts</span>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="5" class="text-center text-muted py-4">
+                <i class="fa fa-trophy fa-2x mb-2"></i><br>No rankings yet. Attend events to earn points!
+              </td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="alert alert-info mt-3">
+        <i class="fa fa-info-circle me-2"></i>
+        <strong>How to earn points:</strong> Attend events to earn <strong>10 points</strong> each time your QR code is scanned.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

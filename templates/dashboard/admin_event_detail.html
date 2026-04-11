@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block title %}Admin: {{ event.title }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1>{{ event.title }}</h1>
+    <p class="mb-0 opacity-75">Admin Event Detail View</p>
+  </div>
+</div>
+<div class="container pb-5">
+  <div class="row g-4">
+    <div class="col-md-4">
+      <div class="card mb-3">
+        <div class="card-body">
+          <h6 class="fw-bold text-muted text-uppercase mb-3" style="font-size:.75rem">Event Info</h6>
+          <div class="mb-2"><span class="text-muted small">Organizer:</span><br><strong>{{ event.organizer.get_full_name|default:event.organizer.username }}</strong></div>
+          <div class="mb-2"><span class="text-muted small">Date:</span><br><strong>{{ event.date|date:"M d, Y" }}</strong></div>
+          <div class="mb-2"><span class="text-muted small">Venue:</span><br><strong>{{ event.venue }}</strong></div>
+          <div class="mb-2"><span class="text-muted small">Category:</span><br><span class="category-badge cat-{{ event.category }}">{{ event.get_category_display }}</span></div>
+          <div class="mb-2"><span class="text-muted small">Capacity:</span><br><strong>{{ event.registered_count }}/{{ event.max_capacity }}</strong></div>
+          <div class="mb-2"><span class="text-muted small">Attendance:</span><br><strong>{{ event.attendance_count }}</strong></div>
+          <div class="mb-2"><span class="text-muted small">Avg Rating:</span><br>
+            {% if event.average_rating > 0 %}<span class="text-warning"><i class="fa fa-star"></i> {{ event.average_rating }}</span>{% else %}—{% endif %}</div>
+          <div class="mb-3"><span class="text-muted small">Status:</span><br>
+            <span class="badge {% if event.status == 'approved' %}bg-success{% elif event.status == 'pending' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+              {{ event.get_status_display }}
+            </span>
+          </div>
+          {% if event.status == 'pending' %}
+          <a href="{% url 'approve_event' event.pk %}" class="btn btn-success w-100 mb-2"><i class="fa fa-check me-1"></i>Approve</a>
+          <button class="btn btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#rejectModal"><i class="fa fa-times me-1"></i>Reject</button>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header"><i class="fa fa-users me-2 text-primary"></i>Registered Students ({{ registrations.count }})</div>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead><tr><th>Student</th><th>Roll No.</th><th>Registered</th><th>Attended</th><th>Certificate</th></tr></thead>
+            <tbody>
+              {% for reg in registrations %}
+              <tr>
+                <td>
+                  <div class="fw-semibold">{{ reg.student.get_full_name|default:reg.student.username }}</div>
+                  <div class="text-muted small">{{ reg.student.email }}</div>
+                </td>
+                <td class="text-muted small">{{ reg.student.roll_number|default:"—" }}</td>
+                <td class="text-muted small">{{ reg.registered_at|date:"M d, Y" }}</td>
+                <td><span class="badge {% if reg.attended %}bg-success{% else %}bg-secondary{% endif %}">{% if reg.attended %}Yes{% else %}No{% endif %}</span></td>
+                <td>{% if reg.certificate %}<span class="badge bg-success">Generated</span>{% else %}—{% endif %}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="5" class="text-center text-muted py-3">No registrations yet</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="rejectModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content rounded-3">
+    <div class="modal-header border-0"><h5 class="modal-title fw-bold">Reject Event</h5></div>
+    <form method="POST" action="{% url 'reject_event' event.pk %}">
+      {% csrf_token %}
+      <div class="modal-body">
+        <textarea name="reason" class="form-control" rows="3" placeholder="Reason..." required></textarea>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-danger">Reject</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+{% endblock %}

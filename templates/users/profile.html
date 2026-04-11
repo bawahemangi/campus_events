@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}My Profile — CampusEvents{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="container"><h1><i class="fa fa-user me-2"></i>My Profile</h1></div>
+</div>
+<div class="container pb-5">
+  <div class="row g-4">
+    <div class="col-md-4">
+      <div class="card text-center">
+        <div class="card-body py-4">
+          {% if user.profile_pic %}
+            <img src="{{ user.profile_pic.url }}" width="100" height="100" class="rounded-circle object-fit-cover mb-3">
+          {% else %}
+            <div style="width:100px;height:100px;background:var(--primary);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:2rem;margin:0 auto 1rem">
+              {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
+            </div>
+          {% endif %}
+          <h5 class="fw-bold mb-1">{{ user.get_full_name|default:user.username }}</h5>
+          <p class="text-muted mb-2">{{ user.email }}</p>
+          <span class="role-badge role-{{ user.role }}">{{ user.get_role_display }}</span>
+          {% if user.department %}<p class="text-muted small mt-2">{{ user.department }}</p>{% endif %}
+          <div class="row g-2 mt-3">
+            <div class="col-4"><div class="fw-bold">{{ registered_count }}</div><div class="text-muted small">Registered</div></div>
+            <div class="col-4"><div class="fw-bold">{{ attended_count }}</div><div class="text-muted small">Attended</div></div>
+            <div class="col-4"><div class="fw-bold text-warning">{{ points }}</div><div class="text-muted small">Points</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header"><i class="fa fa-edit me-2 text-primary"></i>Edit Profile</div>
+        <div class="card-body p-4">
+          <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="row g-3">
+              <div class="col-md-6"><label class="form-label">First Name</label><input type="text" name="first_name" class="form-control" value="{{ user.first_name }}"></div>
+              <div class="col-md-6"><label class="form-label">Last Name</label><input type="text" name="last_name" class="form-control" value="{{ user.last_name }}"></div>
+              <div class="col-12"><label class="form-label">Email</label><input type="email" name="email" class="form-control" value="{{ user.email }}"></div>
+              <div class="col-md-6"><label class="form-label">Department</label><input type="text" name="department" class="form-control" value="{{ user.department }}"></div>
+              <div class="col-md-6"><label class="form-label">Phone</label><input type="text" name="phone" class="form-control" value="{{ user.phone }}"></div>
+              {% if user.is_student %}
+              <div class="col-md-6"><label class="form-label">Roll Number</label><input type="text" name="roll_number" class="form-control" value="{{ user.roll_number }}"></div>
+              <div class="col-md-6"><label class="form-label">Year of Study</label><input type="number" name="year_of_study" class="form-control" value="{{ user.year_of_study }}" min="1" max="5"></div>
+              {% endif %}
+              <div class="col-12"><label class="form-label">Bio</label><textarea name="bio" class="form-control" rows="2">{{ user.bio }}</textarea></div>
+              <div class="col-12"><label class="form-label">Profile Picture</label><input type="file" name="profile_pic" class="form-control" accept="image/*"></div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-4"><i class="fa fa-save me-2"></i>Save Changes</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

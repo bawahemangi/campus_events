@@ -1,0 +1,265 @@
+{% extends 'base.html' %}
+{% block title %}{{ event.title }} — CampusEvents{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb mb-2">
+      <li class="breadcrumb-item"><a href="{% url 'event_list' %}">Events</a></li>
+      <li class="breadcrumb-item active">{{ event.title|truncatechars:30 }}</li>
+    </ol></nav>
+    <h1>{{ event.title }}</h1>
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+      <span class="category-badge cat-{{ event.category }} fs-6">{{ event.get_category_display }}</span>
+      <span class="badge {% if event.status == 'approved' %}bg-success{% elif event.status == 'pending' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+        {{ event.get_status_display }}
+      </span>
+      {% if event.average_rating > 0 %}
+      <span class="text-warning"><i class="fa fa-star"></i> {{ event.average_rating }}/5 ({{ event.feedbacks.count }} reviews)</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="container pb-5">
+  <div class="row g-4">
+    <!-- Left: Event info -->
+    <div class="col-lg-8">
+      {% if event.poster %}
+      <img src="{{ event.poster.url }}" class="w-100 rounded-3 mb-4" style="max-height:400px;object-fit:cover" alt="{{ event.title }}">
+      {% endif %}
+
+      <div class="card mb-4">
+        <div class="card-body">
+          <h5 class="fw-bold mb-3">About this Event</h5>
+          <p style="line-height:1.8">{{ event.description }}</p>
+        </div>
+      </div>
+
+      <!-- Feedback Section -->
+      {% if user_registration and user_registration.attended %}
+        {% if not user_feedback %}
+        <div class="card mb-4 border-0" style="background:linear-gradient(135deg,#6c47ff11,#ff6b6b11)">
+          <div class="card-body">
+            <h5 class="fw-bold mb-3"><i class="fa fa-star text-warning me-2"></i>Leave Your Feedback</h5>
+            <form method="POST" action="{% url 'submit_feedback' event.pk %}">
+              {% csrf_token %}
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Rating</label>
+                <div class="star-rating" id="starRating">
+                  {% for i in "54321" %}
+                  <input type="radio" name="rating" id="star{{ i }}" value="{{ i }}" class="star-rating-input">
+                  <label for="star{{ i }}">★</label>
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Comments</label>
+                <textarea name="comment" class="form-control" rows="3" placeholder="Share your experience..."></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary">
+                <i class="fa fa-paper-plane me-2"></i>Submit Feedback
+              </button>
+            </form>
+          </div>
+        </div>
+        {% else %}
+        <div class="alert alert-success">
+          <i class="fa fa-check me-2"></i>You rated this event <strong>{{ user_feedback.rating }}/5</strong> stars. Thanks for your feedback!
+        </div>
+        {% endif %}
+      {% endif %}
+
+      <!-- Reviews -->
+      {% if feedbacks %}
+      <div class="card">
+        <div class="card-header">
+          <i class="fa fa-comments me-2 text-primary"></i>Student Reviews
+        </div>
+        <div class="card-body">
+          {% for fb in feedbacks %}
+          <div class="d-flex gap-3 mb-3 pb-3 {% if not forloop.last %}border-bottom{% endif %}">
+            <div style="width:38px;height:38px;background:var(--primary);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex-shrink:0">
+              {{ fb.student.first_name|first|upper }}
+            </div>
+            <div>
+              <div class="fw-semibold">{{ fb.student.get_full_name|default:fb.student.username }}</div>
+              <div class="stars">{% for i in "12345" %}{% if forloop.counter <= fb.rating %}★{% else %}☆{% endif %}{% endfor %}</div>
+              {% if fb.comment %}<p class="mb-0 text-muted small mt-1">{{ fb.comment }}</p>{% endif %}
+              <div class="text-muted" style="font-size:.75rem">{{ fb.created_at|date:"M d, Y" }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Right: Registration panel -->
+    <div class="col-lg-4">
+      <!-- Event Info Card -->
+      <div class="card mb-3">
+        <div class="card-body">
+          <h6 class="fw-bold mb-3 text-muted text-uppercase" style="font-size:.75rem;letter-spacing:.5px">Event Details</h6>
+          <div class="d-flex flex-column gap-3">
+            <div class="d-flex align-items-center gap-3">
+              <div style="width:36px;height:36px;background:#6c47ff15;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--primary)">
+                <i class="fa fa-calendar"></i>
+              </div>
+              <div><div class="fw-semibold">{{ event.date|date:"l, M d, Y" }}</div><div class="text-muted small">Date</div></div>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+              <div style="width:36px;height:36px;background:#06d6a015;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#06d6a0">
+                <i class="fa fa-clock"></i>
+              </div>
+              <div><div class="fw-semibold">{{ event.start_time|time:"g:i A" }} – {{ event.end_time|time:"g:i A" }}</div><div class="text-muted small">Time</div></div>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+              <div style="width:36px;height:36px;background:#ff6b6b15;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#ff6b6b">
+                <i class="fa fa-location-dot"></i>
+              </div>
+              <div><div class="fw-semibold">{{ event.venue }}</div><div class="text-muted small">Venue</div></div>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+              <div style="width:36px;height:36px;background:#ffd93d22;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#b8860b">
+                <i class="fa fa-users"></i>
+              </div>
+              <div>
+                <div class="fw-semibold" id="seats-live">
+                  {% if event.is_full %}Full{% else %}{{ event.seats_left }} seats left{% endif %}
+                </div>
+                <div class="text-muted small">{{ event.registered_count }}/{{ event.max_capacity }} registered</div>
+              </div>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+              <div style="width:36px;height:36px;background:#6c47ff15;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--primary)">
+                <i class="fa fa-user-tie"></i>
+              </div>
+              <div><div class="fw-semibold">{{ event.organizer.get_full_name|default:event.organizer.username }}</div><div class="text-muted small">{{ event.organizer.department }}</div></div>
+            </div>
+          </div>
+
+          <!-- Capacity bar -->
+          <div class="mt-3">
+            <div class="progress" style="height:8px;border-radius:4px">
+              <div class="progress-bar {% if event.is_full %}bg-danger{% elif event.seats_left <= 10 %}bg-warning{% else %}bg-success{% endif %}"
+                   style="width: {% widthratio event.registered_count event.max_capacity 100 %}%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Registration Action Card -->
+      {% if event.status == 'approved' %}
+      <div class="card">
+        <div class="card-body text-center">
+          {% if not user.is_authenticated %}
+            <p class="text-muted mb-3">Login to register for this event</p>
+            <a href="{% url 'login' %}?next={{ request.path }}" class="btn btn-primary w-100">
+              <i class="fa fa-sign-in-alt me-2"></i>Login to Register
+            </a>
+          {% elif user.role == 'student' %}
+            {% if user_registration %}
+              <div class="alert alert-success mb-3 text-start">
+                <i class="fa fa-check-circle me-2"></i>
+                <strong>You're registered!</strong>
+                {% if user_registration.attended %}
+                  <br><i class="fa fa-star text-warning me-1"></i>Attendance marked
+                {% endif %}
+              </div>
+              {% if user_registration.qr_code %}
+              <div class="text-center mb-3">
+                <p class="small text-muted fw-semibold">Your Attendance QR Code</p>
+                <img src="{{ user_registration.qr_code.url }}" width="160" height="160" class="rounded-2 border" alt="QR Code">
+              </div>
+              {% endif %}
+              {% if user_registration.attended and user_registration.certificate %}
+              <a href="{% url 'download_certificate' user_registration.pk %}" class="btn btn-success w-100 mb-2">
+                <i class="fa fa-certificate me-2"></i>Download Certificate
+              </a>
+              {% endif %}
+              {% if not event.is_past %}
+              <a href="{% url 'cancel_registration' user_registration.pk %}" class="btn btn-outline-danger btn-sm w-100"
+                 onclick="return confirm('Cancel your registration?')">
+                <i class="fa fa-times me-1"></i>Cancel Registration
+              </a>
+              {% endif %}
+            {% elif event.is_past %}
+              <p class="text-muted">Registration is closed for past events.</p>
+            {% elif event.is_full %}
+              <button class="btn btn-secondary w-100 disabled">Event is Full</button>
+            {% else %}
+              <a href="{% url 'register_for_event' event.pk %}" class="btn btn-primary btn-lg w-100">
+                <i class="fa fa-plus-circle me-2"></i>Register Now
+              </a>
+              <p class="text-muted small mt-2">Free • Instant confirmation</p>
+            {% endif %}
+          {% elif user.role == 'organizer' and user == event.organizer %}
+            <a href="{% url 'scan_qr' event.pk %}" class="btn btn-primary w-100 mb-2">
+              <i class="fa fa-qrcode me-2"></i>Manage Attendance
+            </a>
+            <a href="{% url 'edit_event' event.pk %}" class="btn btn-outline-secondary w-100">
+              <i class="fa fa-edit me-2"></i>Edit Event
+            </a>
+          {% elif user.role == 'admin' %}
+            <a href="{% url 'admin_event_detail' event.pk %}" class="btn btn-outline-primary w-100">
+              <i class="fa fa-chart-bar me-2"></i>View Admin Details
+            </a>
+          {% endif %}
+        </div>
+      </div>
+      {% elif event.status == 'pending' %}
+      <div class="alert alert-warning">
+        <i class="fa fa-clock me-2"></i>This event is pending admin approval.
+        {% if user.role == 'admin' %}
+        <div class="mt-2">
+          <a href="{% url 'approve_event' event.pk %}" class="btn btn-success btn-sm me-2">Approve</a>
+          <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#rejectModal">Reject</button>
+        </div>
+        {% endif %}
+      </div>
+      {% elif event.status == 'rejected' %}
+      <div class="alert alert-danger">
+        <i class="fa fa-times-circle me-2"></i>This event was rejected.<br>
+        <small>{{ event.rejection_reason }}</small>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Reject Modal -->
+{% if user.role == 'admin' %}
+<div class="modal fade" id="rejectModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content rounded-3">
+      <div class="modal-header border-0"><h5 class="modal-title fw-bold">Reject Event</h5></div>
+      <form method="POST" action="{% url 'reject_event' event.pk %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <label class="form-label fw-semibold">Reason for rejection</label>
+          <textarea name="reason" class="form-control" rows="3" placeholder="Provide a reason..." required></textarea>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger">Reject Event</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Live seat update
+setInterval(() => {
+  fetch('/events/{{ event.pk }}/seats/')
+    .then(r => r.json())
+    .then(data => {
+      const el = document.getElementById('seats-live');
+      if (el) el.textContent = data.is_full ? 'Full' : `${data.seats_left} seats left`;
+    });
+}, 10000);
+</script>
+{% endblock %}

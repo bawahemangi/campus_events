@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}Manage Users — CampusEvents{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="container"><h1><i class="fa fa-users me-2"></i>All Users</h1></div>
+</div>
+<div class="container pb-5">
+  <div class="card">
+    <div class="card-header d-flex justify-content-between">
+      <span><i class="fa fa-users me-2 text-primary"></i>{{ users.count }} Users</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Department</th><th>Points</th><th>Joined</th></tr></thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td class="fw-semibold">{{ u.get_full_name|default:"—" }}</td>
+            <td class="text-muted">{{ u.username }}</td>
+            <td class="text-muted small">{{ u.email }}</td>
+            <td><span class="role-badge role-{{ u.role }}">{{ u.role }}</span></td>
+            <td class="text-muted small">{{ u.department|default:"—" }}</td>
+            <td class="fw-semibold text-warning">{{ u.participation_points }}</td>
+            <td class="text-muted small">{{ u.date_joined|date:"M d, Y" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

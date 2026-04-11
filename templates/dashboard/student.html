@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% block title %}My Dashboard — CampusEvents{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1>Welcome back, {{ user.first_name|default:user.username }} 👋</h1>
+    <p class="mb-0 opacity-75">{{ user.department }} {% if user.year_of_study %}• Year {{ user.year_of_study }}{% endif %} {% if user.roll_number %}• {{ user.roll_number }}{% endif %}</p>
+  </div>
+</div>
+
+<div class="container pb-5">
+  <!-- Stats Row -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="stat-card stat-purple text-center">
+        <div class="stat-icon mb-1"><i class="fa fa-calendar-check"></i></div>
+        <div class="stat-value">{{ total_registered }}</div>
+        <div class="stat-label">Total Registered</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card stat-teal text-center">
+        <div class="stat-icon mb-1"><i class="fa fa-check-double"></i></div>
+        <div class="stat-value">{{ attended_count }}</div>
+        <div class="stat-label">Events Attended</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card stat-amber text-center">
+        <div class="stat-icon mb-1"><i class="fa fa-star"></i></div>
+        <div class="stat-value">{{ points }}</div>
+        <div class="stat-label">Points Earned</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card stat-coral text-center">
+        <div class="stat-icon mb-1"><i class="fa fa-trophy"></i></div>
+        <div class="stat-value">#{{ rank }}</div>
+        <div class="stat-label">Leaderboard Rank</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Left: Upcoming registrations -->
+    <div class="col-lg-8">
+      <!-- Upcoming Events -->
+      <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="fa fa-calendar me-2 text-primary"></i>My Upcoming Events</span>
+          <a href="{% url 'event_list' %}" class="btn btn-outline-primary btn-sm">Browse More</a>
+        </div>
+        <div class="card-body">
+          {% if upcoming_registrations %}
+            {% for reg in upcoming_registrations %}
+            <div class="d-flex align-items-center gap-3 py-3 {% if not forloop.last %}border-bottom{% endif %}">
+              <div style="width:48px;height:48px;border-radius:12px;background:var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.3rem;color:#fff">
+                {% if reg.event.category == 'technical' %}💻
+                {% elif reg.event.category == 'cultural' %}🎭
+                {% elif reg.event.category == 'sports' %}🏆
+                {% else %}📅{% endif %}
+              </div>
+              <div class="flex-grow-1 min-w-0">
+                <div class="fw-bold">{{ reg.event.title }}</div>
+                <div class="text-muted small">
+                  <i class="fa fa-calendar me-1"></i>{{ reg.event.date|date:"M d, Y" }} &nbsp;
+                  <i class="fa fa-location-dot me-1"></i>{{ reg.event.venue }}
+                </div>
+              </div>
+              <div class="d-flex flex-column align-items-end gap-1">
+                <a href="{% url 'event_detail' reg.event.pk %}" class="btn btn-outline-primary btn-sm">View</a>
+                {% if reg.qr_code %}
+                <small><a href="{{ reg.qr_code.url }}" target="_blank" class="text-muted"><i class="fa fa-qrcode me-1"></i>QR</a></small>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="text-center py-4">
+              <i class="fa fa-calendar-xmark fa-3x text-muted mb-2"></i>
+              <p class="text-muted">No upcoming registrations. <a href="{% url 'event_list' %}">Browse events!</a></p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Past Attended Events -->
+      <div class="card">
+        <div class="card-header"><i class="fa fa-history me-2 text-primary"></i>Past Events & Certificates</div>
+        <div class="card-body">
+          {% if past_registrations %}
+            {% for reg in past_registrations %}
+            <div class="d-flex align-items-center gap-3 py-2 {% if not forloop.last %}border-bottom{% endif %}">
+              <div>
+                <div class="fw-semibold">{{ reg.event.title }}</div>
+                <div class="text-muted small">{{ reg.event.date|date:"M d, Y" }}</div>
+              </div>
+              <div class="ms-auto d-flex align-items-center gap-2">
+                {% if reg.attended %}
+                  <span class="badge bg-success"><i class="fa fa-check me-1"></i>Attended</span>
+                  {% if reg.certificate %}
+                  <a href="{% url 'download_certificate' reg.pk %}" class="btn btn-success btn-sm">
+                    <i class="fa fa-certificate me-1"></i>Certificate
+                  </a>
+                  {% endif %}
+                {% else %}
+                  <span class="badge bg-secondary">Not Attended</span>
+                {% endif %}
+                {% if reg.attended and not reg.event.feedbacks.all|length %}
+                <a href="{% url 'event_detail' reg.event.pk %}#feedback" class="btn btn-outline-warning btn-sm">
+                  <i class="fa fa-star me-1"></i>Rate
+                </a>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+            <p class="text-muted text-center py-3">No past events yet.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Recommendations & Notifications -->
+    <div class="col-lg-4">
+      <!-- Recommendations -->
+      {% if recommendations %}
+      <div class="card mb-4">
+        <div class="card-header"><i class="fa fa-wand-magic-sparkles me-2 text-primary"></i>Recommended for You</div>
+        <div class="card-body">
+          <p class="text-muted small mb-3">Based on your interests</p>
+          {% for event in recommendations %}
+          <div class="d-flex gap-3 mb-3 pb-3 {% if not forloop.last %}border-bottom{% endif %}">
+            <div style="width:40px;height:40px;border-radius:10px;background:var(--primary);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;font-size:1.1rem">
+              {% if event.category == 'technical' %}💻{% elif event.category == 'cultural' %}🎭{% elif event.category == 'sports' %}🏆{% else %}📅{% endif %}
+            </div>
+            <div class="flex-grow-1 min-w-0">
+              <a href="{% url 'event_detail' event.pk %}" class="fw-semibold text-decoration-none text-dark d-block text-truncate">{{ event.title }}</a>
+              <div class="text-muted" style="font-size:.78rem">{{ event.date|date:"M d" }} • {{ event.venue|truncatechars:20 }}</div>
+              <span class="category-badge cat-{{ event.category }}" style="font-size:.65rem">{{ event.get_category_display }}</span>
+            </div>
+          </div>
+          {% endfor %}
+          <a href="{% url 'event_list' %}" class="btn btn-outline-primary w-100 btn-sm mt-1">View All Events</a>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Notifications -->
+      {% if notifications %}
+      <div class="card">
+        <div class="card-header"><i class="fa fa-bell me-2 text-primary"></i>Recent Notifications</div>
+        <div class="card-body p-0">
+          {% for notif in notifications %}
+          <div class="notif-item">
+            <div class="notif-title">{{ notif.title }}</div>
+            <div class="text-muted small">{{ notif.message|truncatechars:70 }}</div>
+            <div class="notif-time">{{ notif.created_at|date:"M d, g:i A" }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Leaderboard teaser -->
+      <div class="card mt-4" style="background:linear-gradient(135deg,#6c47ff,#9b59b6);color:#fff">
+        <div class="card-body text-center">
+          <i class="fa fa-trophy fa-2x mb-2 opacity-75"></i>
+          <h5 class="fw-bold">Rank #{{ rank }}</h5>
+          <p class="mb-2 opacity-75">You have {{ points }} participation points</p>
+          <a href="{% url 'leaderboard' %}" class="btn btn-light btn-sm fw-semibold">View Leaderboard</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

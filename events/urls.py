@@ -27,6 +27,8 @@ urlpatterns = [
 
     # Attendance
     path('attendance/mark/', views.mark_attendance_api, name='mark_attendance_api'),
+    path('attendance/unmark/<int:registration_id>/', views.unmark_attendance, name='unmark_attendance'),
+    path('check-clash/', views.clash_check_api, name='clash_check_api'),
     path('attendance/manual/<int:registration_id>/', views.mark_attendance_manual, name='mark_attendance_manual'),
 
     # Certificate

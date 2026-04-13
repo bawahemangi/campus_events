@@ -1,101 +1,305 @@
+
 {% extends 'base.html' %}
 {% block title %}{% if event %}Edit Event{% else %}Create Event{% endif %} — CampusEvents{% endblock %}
+{% block extra_css %}
+<style>
+  .form-section {
+    background: #fff;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 1.75rem;
+    margin-bottom: 1.25rem;
+    transition: border-color .2s;
+  }
+  .form-section:focus-within { border-color: #c4b5fd; }
+  .section-title {
+    font-size: .72rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .8px; color: var(--primary);
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 1.25rem;
+  }
+  .section-title::after { content:''; flex:1; height:1px; background:#e5e7eb; }
+
+  /* fee slide */
+  .fee-section { overflow: hidden; max-height: 0; transition: max-height .35s ease; }
+  .fee-section.open { max-height: 300px; }
+
+  /* poster drop */
+  .drop-zone {
+    border: 2px dashed #c4b5fd; border-radius: 12px;
+    padding: 2rem; text-align: center; cursor: pointer;
+    background: #fafaff; transition: all .2s;
+  }
+  .drop-zone:hover, .drop-zone.drag { border-color: var(--primary); background: #f0edff; }
+  .poster-preview { display:none; border-radius: 12px; overflow: hidden; position: relative; }
+  .poster-preview img { width:100%; max-height:200px; object-fit:cover; display:block; }
+  .remove-poster {
+    position:absolute; top:8px; right:8px;
+    background:rgba(0,0,0,.55); color:#fff; border:none;
+    border-radius:50%; width:28px; height:28px; cursor:pointer;
+    font-size:12px; display:flex; align-items:center; justify-content:center;
+  }
+
+  /* field errors */
+  .field-error { font-size:.82rem; color:#e74c3c; margin-top:.3rem; }
+  .form-control.is-invalid, .form-select.is-invalid { border-color:#e74c3c; }
+  .clash-alert {
+    background:#ff6b6b15; border:1.5px solid #ff6b6b55;
+    border-radius:10px; padding:.75rem 1rem;
+    font-size:.85rem; color:#c0392b; display:none; margin-top:.5rem;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
-  <div class="container">
-    <h1><i class="fa fa-{% if event %}edit{% else %}plus-circle{% endif %} me-2"></i>
-      {% if event %}Edit: {{ event.title }}{% else %}Create New Event{% endif %}
-    </h1>
-    <p class="mb-0 opacity-75">{% if event %}Update event details — will be re-submitted for approval{% else %}Fill in the details — admin will review before publishing{% endif %}</p>
+  <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+      <h1>
+        <i class="fa fa-{% if event %}pen-to-square{% else %}calendar-plus{% endif %} me-2"></i>
+        {% if event %}Edit: {{ event.title }}{% else %}Create New Event{% endif %}
+      </h1>
+      <p class="mb-0 opacity-75">
+        {% if event %}Editing resubmits for admin approval{% else %}Admin will review before it goes live{% endif %}
+      </p>
+    </div>
+    <a href="{% url 'organizer_dashboard' %}" class="btn btn-outline-light btn-sm">
+      <i class="fa fa-arrow-left me-1"></i>Back to Dashboard
+    </a>
   </div>
 </div>
+
 <div class="container pb-5">
   <div class="row justify-content-center">
-    <div class="col-lg-8">
-      <div class="card">
-        <div class="card-body p-4">
-          <form method="POST" enctype="multipart/form-data" novalidate>
-            {% csrf_token %}
-            {% if form.non_field_errors %}
-            <div class="alert alert-danger">
-              {% for error in form.non_field_errors %}<div><i class="fa fa-exclamation-circle me-2"></i>{{ error }}</div>{% endfor %}
+    <div class="col-xl-8 col-lg-10">
+
+      {# ── Global errors (clash, etc.) ── #}
+      {% if form.non_field_errors %}
+      <div class="alert alert-danger mb-3">
+        {% for err in form.non_field_errors %}
+        <div><i class="fa fa-triangle-exclamation me-2"></i>{{ err }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {# ── Django messages (from view) ── #}
+      {% for msg in messages %}
+      <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show">
+        {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+      {% endfor %}
+
+      <form method="POST" enctype="multipart/form-data" id="eventForm" novalidate>
+        {% csrf_token %}
+
+        {# ── 1. Basic Info ── #}
+        <div class="form-section">
+          <div class="section-title"><i class="fa fa-circle-info"></i>Basic Information</div>
+          <div class="row g-3">
+
+            <div class="col-12">
+              <label class="form-label fw-semibold" for="id_title">Event Title <span class="text-danger">*</span></label>
+              <input type="text" name="title" id="id_title"
+                class="form-control form-control-lg {% if form.title.errors %}is-invalid{% endif %}"
+                placeholder="e.g. Annual Tech Fest 2024"
+                value="{{ form.title.value|default:'' }}" required>
+              {% for e in form.title.errors %}<div class="field-error"><i class="fa fa-circle-xmark me-1"></i>{{ e }}</div>{% endfor %}
             </div>
-            {% endif %}
-            <div class="row g-3">
-              <div class="col-12">
-                <label class="form-label">Event Title *</label>
-                <input type="text" name="title" class="form-control form-control-lg" placeholder="e.g. Annual Tech Fest 2024"
-                  value="{{ form.title.value|default:'' }}" required>
-                {% if form.title.errors %}<div class="text-danger small">{{ form.title.errors.0 }}</div>{% endif %}
-              </div>
-              <div class="col-12">
-                <label class="form-label">Description *</label>
-                <textarea name="description" class="form-control" rows="4" placeholder="Describe your event in detail...">{{ form.description.value|default:'' }}</textarea>
-              </div>
-              <div class="col-md-4">
-                <label class="form-label">Category *</label>
-                <select name="category" class="form-select">
-                  {% for val, label in form.fields.category.choices %}
-                  <option value="{{ val }}" {% if form.category.value == val %}selected{% endif %}>{{ label }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-              <div class="col-md-4">
-                <label class="form-label">Date *</label>
-                <input type="date" name="date" class="form-control" required value="{{ form.date.value|default:'' }}">
-              </div>
-              <div class="col-md-4">
-                <label class="form-label">Venue *</label>
-                <input type="text" name="venue" class="form-control" placeholder="e.g. Main Auditorium"
-                  value="{{ form.venue.value|default:'' }}" required>
-              </div>
-              <div class="col-md-4">
-                <label class="form-label">Start Time *</label>
-                <input type="time" name="start_time" class="form-control" required value="{{ form.start_time.value|default:'' }}">
-              </div>
-              <div class="col-md-4">
-                <label class="form-label">End Time *</label>
-                <input type="time" name="end_time" class="form-control" required value="{{ form.end_time.value|default:'' }}">
-              </div>
-              <div class="col-md-4">
-                <label class="form-label">Max Capacity *</label>
-                <input type="number" name="max_capacity" class="form-control" placeholder="100" min="1" max="10000"
-                  value="{{ form.max_capacity.value|default:'100' }}" required>
-              </div>
-              <div class="col-12">
-                <label class="form-label">Event Poster / Banner</label>
-                <input type="file" name="poster" class="form-control" accept="image/*" onchange="previewImage(this)">
-                <div id="imagePreview" class="mt-2"></div>
-                {% if event and event.poster %}
-                <div class="mt-2">
-                  <img src="{{ event.poster.url }}" height="100" class="rounded-2 me-2">
-                  <small class="text-muted">Current poster — upload new to replace</small>
-                </div>
-                {% endif %}
-              </div>
-              <div class="col-12">
-                <label class="form-label">Certificate Text</label>
-                <textarea name="certificate_template" class="form-control" rows="2"
-                  placeholder="Use {student_name}, {event_name}, {event_date} as placeholders">{{ form.certificate_template.value|default:'' }}</textarea>
-                <div class="form-text">Variables: <code>{student_name}</code> <code>{event_name}</code> <code>{event_date}</code></div>
+
+            <div class="col-md-8">
+              <label class="form-label fw-semibold" for="id_description">Description <span class="text-danger">*</span></label>
+              <textarea name="description" id="id_description" rows="4"
+                class="form-control {% if form.description.errors %}is-invalid{% endif %}"
+                placeholder="Tell students what to expect, what to bring, who should attend...">{{ form.description.value|default:'' }}</textarea>
+              {% for e in form.description.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold" for="id_category">Category <span class="text-danger">*</span></label>
+              <select name="category" id="id_category"
+                class="form-select {% if form.category.errors %}is-invalid{% endif %}">
+                {% for val, label in form.fields.category.choices %}
+                <option value="{{ val }}" {% if form.category.value == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              {% for e in form.category.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+              <div id="cat-badge" class="mt-2"></div>
+            </div>
+
+          </div>
+        </div>
+
+        {# ── 2. Date / Time / Venue ── #}
+        <div class="form-section">
+          <div class="section-title"><i class="fa fa-calendar-days"></i>Date, Time & Venue</div>
+          <div class="row g-3">
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Event Date <span class="text-danger">*</span></label>
+              <input type="date" name="date" id="id_date"
+                class="form-control {% if form.date.errors %}is-invalid{% endif %}"
+                value="{{ form.date.value|default:'' }}"
+                min="{{ today }}" required>
+              {% for e in form.date.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Start Time <span class="text-danger">*</span></label>
+              <input type="time" name="start_time" id="id_start_time"
+                class="form-control {% if form.start_time.errors %}is-invalid{% endif %}"
+                value="{{ form.start_time.value|default:'' }}" required>
+              {% for e in form.start_time.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">End Time <span class="text-danger">*</span></label>
+              <input type="time" name="end_time" id="id_end_time"
+                class="form-control {% if form.end_time.errors %}is-invalid{% endif %}"
+                value="{{ form.end_time.value|default:'' }}" required>
+              {% for e in form.end_time.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="col-md-8">
+              <label class="form-label fw-semibold">Venue <span class="text-danger">*</span></label>
+              <input type="text" name="venue" id="id_venue"
+                class="form-control {% if form.venue.errors %}is-invalid{% endif %}"
+                placeholder="e.g. Main Auditorium, Block A Lab"
+                value="{{ form.venue.value|default:'' }}" required>
+              {% for e in form.venue.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+              <div class="clash-alert" id="clashAlert">
+                <i class="fa fa-triangle-exclamation me-2"></i><span id="clashMsg"></span>
               </div>
             </div>
 
-            <div class="d-flex gap-3 mt-4">
-              <button type="submit" class="btn btn-primary btn-lg px-5">
-                <i class="fa fa-{% if event %}save{% else %}paper-plane{% endif %} me-2"></i>
-                {% if event %}Save Changes{% else %}Submit for Approval{% endif %}
-              </button>
-              <a href="{% url 'organizer_dashboard' %}" class="btn btn-outline-secondary btn-lg">Cancel</a>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Max Capacity <span class="text-danger">*</span></label>
+              <input type="number" name="max_capacity" id="id_max_capacity"
+                class="form-control {% if form.max_capacity.errors %}is-invalid{% endif %}"
+                placeholder="100" min="1" max="10000"
+                value="{{ form.max_capacity.value|default:'100' }}" required>
+              {% for e in form.max_capacity.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
             </div>
-          </form>
+
+          </div>
+        </div>
+
+        {# ── 3. Event Poster ── #}
+        <div class="form-section">
+          <div class="section-title"><i class="fa fa-image"></i>Event Poster / Banner <span class="text-muted fw-normal">(optional)</span></div>
+
+          <div class="drop-zone" id="dropZone"
+            onclick="document.getElementById('id_poster').click()"
+            ondragover="event.preventDefault(); this.classList.add('drag')"
+            ondragleave="this.classList.remove('drag')"
+            ondrop="handleDrop(event)">
+            <i class="fa fa-cloud-arrow-up fa-2x text-primary mb-2"></i>
+            <div class="fw-semibold">Click to upload or drag & drop</div>
+            <div class="text-muted small mt-1">JPG, PNG — max 5 MB recommended</div>
+            <input type="file" name="poster" id="id_poster" accept="image/*" class="d-none"
+              onchange="showPreview(this.files[0])">
+          </div>
+
+          <div class="poster-preview mt-2" id="posterPreview">
+            <img id="posterImg" src="" alt="">
+            <button type="button" class="remove-poster" onclick="clearPoster()">✕</button>
+          </div>
+
+          {% if event and event.poster %}
+          <div class="mt-2 d-flex align-items-center gap-2" id="currentPoster">
+            <img src="{{ event.poster.url }}" height="56" class="rounded-2 border">
+            <small class="text-muted">Current poster — upload a new one to replace it</small>
+          </div>
+          {% endif %}
+        </div>
+
+        {# ── 4. Payment ── #}
+        <div class="form-section">
+          <div class="section-title"><i class="fa fa-credit-card"></i>Payment Settings</div>
+
+          <div class="d-flex align-items-center justify-content-between p-3 rounded-3"
+            style="background:#f8f9ff; border:1.5px solid #e5e7eb" id="paidToggleBox">
+            <div>
+              <div class="fw-bold">Charge a registration fee?</div>
+              <div class="text-muted small">Students pay via Razorpay (UPI, cards, net banking)</div>
+            </div>
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" role="switch"
+                name="is_paid" id="id_is_paid"
+                style="width:2.6rem;height:1.35rem;cursor:pointer"
+                {% if form.is_paid.value %}checked{% endif %}
+                onchange="toggleFee(this.checked)">
+              <label class="form-check-label fw-semibold ms-2" for="id_is_paid">
+                Paid Event
+              </label>
+            </div>
+          </div>
+
+          {# Slide-down fee input #}
+          <div class="fee-section {% if form.is_paid.value %}open{% endif %}" id="feeSection">
+            <div class="row g-3 mt-1">
+              <div class="col-md-5">
+                <label class="form-label fw-semibold">Registration Fee <span class="text-danger">*</span></label>
+                <div class="input-group input-group-lg">
+                  <span class="input-group-text fw-bold">₹</span>
+                  <input type="number" name="registration_fee" id="id_registration_fee"
+                    class="form-control {% if form.registration_fee.errors %}is-invalid{% endif %}"
+                    placeholder="199" min="1" step="1"
+                    value="{{ form.registration_fee.value|default:'' }}">
+                </div>
+                {% for e in form.registration_fee.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+              </div>
+              <div class="col-md-7 d-flex align-items-end">
+                <div class="p-3 rounded-2 w-100" style="background:#f0edff;font-size:.83rem">
+                  <div class="fw-semibold mb-1"><i class="fa fa-shield-check text-primary me-1"></i>How it works</div>
+                  <div class="text-muted">Student pays → Razorpay verifies → Registration + QR confirmed → Receipt emailed</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {# Free badge shown when not paid #}
+          <div id="freeBadge" class="mt-2 {% if form.is_paid.value %}d-none{% endif %}">
+            <span class="badge bg-success px-3 py-2 fs-6">
+              <i class="fa fa-circle-check me-2"></i>Free — No registration fee
+            </span>
+          </div>
+        </div>
+
+        {# ── 5. Certificate ── #}
+        <div class="form-section">
+          <div class="section-title"><i class="fa fa-certificate"></i>Certificate Message <span class="text-muted fw-normal">(optional)</span></div>
+          <textarea name="certificate_template" id="id_certificate_template"
+            class="form-control" rows="2"
+            placeholder="This is to certify that {student_name} has participated in {event_name} on {event_date}.">{{ form.certificate_template.value|default:'' }}</textarea>
+          <div class="form-text mt-1">
+            Placeholders: <code class="bg-light px-1 rounded">{student_name}</code>
+            <code class="bg-light px-1 rounded">{event_name}</code>
+            <code class="bg-light px-1 rounded">{event_date}</code>
+            &nbsp;— leave blank for default text.
+          </div>
+        </div>
+
+        {# ── Submit ── #}
+        <div class="d-flex gap-3 mt-3">
+          <button type="submit" class="btn btn-primary btn-lg px-5 fw-bold">
+            <i class="fa fa-{% if event %}floppy-disk{% else %}paper-plane{% endif %} me-2"></i>
+            {% if event %}Save & Resubmit for Approval{% else %}Submit for Admin Approval{% endif %}
+          </button>
+          <a href="{% url 'organizer_dashboard' %}" class="btn btn-outline-secondary btn-lg">
+            Cancel
+          </a>
+        </div>
+      </form>
+
+      <div class="alert alert-info mt-4 d-flex gap-2 align-items-start">
+        <i class="fa fa-lightbulb fa-lg text-primary mt-1 flex-shrink-0"></i>
+        <div>
+          <strong>What happens next?</strong>
+          Your event goes to the admin for review. Once approved it appears live for students to register.
+          You'll get an email + in-app notification either way.
         </div>
       </div>
 
-      <div class="alert alert-info mt-3">
-        <i class="fa fa-info-circle me-2"></i>
-        <strong>Venue Clash Detection:</strong> The system will automatically check if your event clashes with another event at the same venue and time.
-      </div>
     </div>
   </div>
 </div>
@@ -103,15 +307,98 @@
 
 {% block extra_js %}
 <script>
-function previewImage(input) {
-  const preview = document.getElementById('imagePreview');
-  if (input.files && input.files[0]) {
-    const reader = new FileReader();
-    reader.onload = e => {
-      preview.innerHTML = `<img src="${e.target.result}" height="120" class="rounded-2 border" style="max-width:100%">`;
-    };
-    reader.readAsDataURL(input.files[0]);
+// ── Payment toggle ──────────────────────────────────────────────────
+function toggleFee(on) {
+  const sec   = document.getElementById('feeSection');
+  const badge = document.getElementById('freeBadge');
+  const box   = document.getElementById('paidToggleBox');
+  const inp   = document.getElementById('id_registration_fee');
+  sec.classList.toggle('open', on);
+  badge.classList.toggle('d-none', on);
+  box.style.borderColor = on ? 'var(--primary)' : '#e5e7eb';
+  box.style.background  = on ? '#f0edff' : '#f8f9ff';
+  inp.required = on;
+}
+
+// ── Poster preview ──────────────────────────────────────────────────
+function showPreview(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('posterImg').src = e.target.result;
+    document.getElementById('posterPreview').style.display = 'block';
+    document.getElementById('dropZone').style.display = 'none';
+    const cur = document.getElementById('currentPoster');
+    if (cur) cur.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+function handleDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    document.getElementById('id_poster').files = dt.files;
+    showPreview(file);
   }
 }
+function clearPoster() {
+  document.getElementById('id_poster').value = '';
+  document.getElementById('posterPreview').style.display = 'none';
+  document.getElementById('dropZone').style.display = 'block';
+}
+
+// ── Category colour badge ──────────────────────────────────────────
+const catColours = {
+  technical:'#6c47ff', cultural:'#ff6b6b', sports:'#06d6a0',
+  workshop:'#b8860b', seminar:'#3f51b5', other:'#6b7280'
+};
+function updateCatBadge() {
+  const sel = document.getElementById('id_category');
+  const col = catColours[sel.value] || '#6b7280';
+  const lbl = sel.options[sel.selectedIndex]?.text || '';
+  document.getElementById('cat-badge').innerHTML = lbl
+    ? `<span style="display:inline-block;padding:3px 12px;border-radius:20px;font-size:.72rem;font-weight:700;text-transform:uppercase;background:${col}22;color:${col};border:1px solid ${col}44">${lbl}</span>`
+    : '';
+}
+document.getElementById('id_category').addEventListener('change', updateCatBadge);
+updateCatBadge();
+
+// ── Live venue clash check ─────────────────────────────────────────
+let clashTimer = null;
+function checkClash() {
+  const date  = document.getElementById('id_date').value;
+  const start = document.getElementById('id_start_time').value;
+  const end   = document.getElementById('id_end_time').value;
+  const venue = document.getElementById('id_venue').value.trim();
+  if (!date || !start || !end || !venue) return;
+
+  clearTimeout(clashTimer);
+  clashTimer = setTimeout(() => {
+    const p = new URLSearchParams({
+      date, start_time: start, end_time: end, venue,
+      exclude_id: '{{ event.pk|default:"" }}'
+    });
+    fetch(`/events/check-clash/?${p}`)
+      .then(r => r.json())
+      .then(data => {
+        const el = document.getElementById('clashAlert');
+        if (data.clash) {
+          document.getElementById('clashMsg').textContent = data.message;
+          el.style.display = 'block';
+        } else {
+          el.style.display = 'none';
+        }
+      }).catch(() => {});
+  }, 700);
+}
+['id_date','id_start_time','id_end_time','id_venue'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('change', checkClash);
+});
 </script>
 {% endblock %}
+HTMLEOF
+echo "create_event.html written"

@@ -198,7 +198,7 @@ def create_event(request):
     if not request.user.is_organizer:
         messages.error(request, 'Only organizers can create events.')
         return redirect('dashboard')
-    
+
     if request.method == 'POST':
         form = EventForm(request.POST, request.FILES)
         if form.is_valid():
@@ -206,35 +206,52 @@ def create_event(request):
             event.organizer = request.user
             event.status = 'pending'
             event.save()
-            
-            messages.success(request, '✅ Event submitted for admin approval!')
+            messages.success(request,
+                f'✅ "{event.title}" submitted for admin approval! '
+                f'You will be notified once it is reviewed.')
             return redirect('organizer_dashboard')
+        else:
+            # Show all validation errors clearly
+            for field, errors in form.errors.items():
+                for error in errors:
+                    label = field.replace('_', ' ').title() if field != '__all__' else 'Error'
+                    messages.error(request, f'{label}: {error}')
     else:
         form = EventForm()
-    
-    return render(request, 'events/create_event.html', {'form': form})
+
+    return render(request, 'events/create_event.html', {
+        'form': form,
+        'today': timezone.now().date().isoformat(),
+    })
 
 
 @login_required
 def edit_event(request, pk):
     """Organizer edits an event."""
     event = get_object_or_404(Event, pk=pk, organizer=request.user)
-    
-    if event.status == 'approved' and event.registered_count > 0:
-        messages.warning(request, 'Event has registrations; some fields are locked.')
-    
+
     if request.method == 'POST':
         form = EventForm(request.POST, request.FILES, instance=event)
         if form.is_valid():
-            event = form.save(commit=False)
-            event.status = 'pending'  # Re-submit for approval
-            event.save()
-            messages.success(request, 'Event updated and resubmitted for approval.')
+            updated = form.save(commit=False)
+            updated.status = 'pending'
+            updated.save()
+            messages.success(request,
+                f'✅ "{updated.title}" updated and resubmitted for admin approval.')
             return redirect('organizer_dashboard')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    label = field.replace('_', ' ').title() if field != '__all__' else 'Error'
+                    messages.error(request, f'{label}: {error}')
     else:
         form = EventForm(instance=event)
-    
-    return render(request, 'events/create_event.html', {'form': form, 'event': event})
+
+    return render(request, 'events/create_event.html', {
+        'form': form,
+        'event': event,
+        'today': timezone.now().date().isoformat(),
+    })
 
 
 @login_required
@@ -243,11 +260,18 @@ def scan_qr(request, pk):
     event = get_object_or_404(Event, pk=pk, organizer=request.user)
     registrations = event.registrations.select_related('student').order_by('-registered_at')
     
+    total = event.registered_count
+    attended = event.attendance_count
+    pct = round((attended / total * 100) if total else 0)
+    circumference = 201
+    pct_offset = circumference - (pct / 100) * circumference
+
     context = {
-        'event': event,
-        'registrations': registrations,
-        'attended_count': event.attendance_count,
-        'total_count': event.registered_count,
+        'event':          event,
+        'registrations':  registrations,
+        'attended_count': attended,
+        'total_count':    total,
+        'pct_offset':     round(pct_offset, 1),
     }
     return render(request, 'events/scan_qr.html', context)
 
@@ -292,8 +316,9 @@ def mark_attendance_api(request):
         
         return JsonResponse({
             'success': True,
-            'message': f'✅ Attendance marked for {registration.student.get_full_name() or registration.student.username}!',
+            'message': f'Attendance marked for {registration.student.get_full_name() or registration.student.username}!',
             'student_name': registration.student.get_full_name() or registration.student.username,
+            'registration_id': registration.pk,
         })
     
     except Registration.DoesNotExist:
@@ -391,3 +416,69 @@ def all_notifications(request):
     # Mark all as read
     request.user.notifications.filter(is_read=False).update(is_read=True)
     return render(request, 'events/notifications.html', {'notifications': notifications})
+
+
+@login_required
+def unmark_attendance(request, registration_id):
+    """Undo attendance marking (organizer or admin only)."""
+    import json
+    registration = get_object_or_404(Registration, pk=registration_id)
+
+    if registration.event.organizer != request.user and not request.user.is_admin_user:
+        return JsonResponse({'success': False, 'error': 'Unauthorized'})
+
+    if registration.attended:
+        registration.attended = False
+        registration.save()
+        # Remove points
+        if registration.student.participation_points >= 10:
+            registration.student.participation_points -= 10
+            registration.student.save()
+
+    return JsonResponse({
+        'success': True,
+        'student': registration.student.get_full_name() or registration.student.username
+    })
+
+
+def clash_check_api(request):
+    """AJAX endpoint: check if an event would clash with existing ones."""
+    date       = request.GET.get('date', '')
+    start_time = request.GET.get('start_time', '')
+    end_time   = request.GET.get('end_time', '')
+    venue      = request.GET.get('venue', '').strip()
+    exclude_id = request.GET.get('exclude_id', '')
+
+    if not all([date, start_time, end_time, venue]):
+        return JsonResponse({'clash': False})
+
+    from datetime import time as dt_time, date as dt_date
+    try:
+        from django.utils.dateparse import parse_date, parse_time
+        d   = parse_date(date)
+        st  = parse_time(start_time)
+        et  = parse_time(end_time)
+    except Exception:
+        return JsonResponse({'clash': False})
+
+    qs = Event.objects.filter(
+        date=d, venue__iexact=venue, status__in=['approved', 'pending']
+    )
+    if exclude_id:
+        try:
+            qs = qs.exclude(pk=int(exclude_id))
+        except Exception:
+            pass
+
+    for ev in qs:
+        if not (et <= ev.start_time or st >= ev.end_time):
+            return JsonResponse({
+                'clash': True,
+                'message': (
+                    f'"{ev.title}" is already at {venue} from '
+                    f'{ev.start_time.strftime("%I:%M %p")} to '
+                    f'{ev.end_time.strftime("%I:%M %p")} on {d.strftime("%b %d")}.'
+                )
+            })
+
+    return JsonResponse({'clash': False})

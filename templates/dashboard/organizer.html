@@ -103,11 +103,13 @@
               {% else %}—{% endif %}
             </td>
             <td>
-              <div class="d-flex gap-1">
+              <div class="d-flex gap-1 flex-wrap">
                 <a href="{% url 'event_detail' e.pk %}" class="btn btn-outline-secondary btn-sm" title="View"><i class="fa fa-eye"></i></a>
                 <a href="{% url 'edit_event' e.pk %}" class="btn btn-outline-primary btn-sm" title="Edit"><i class="fa fa-edit"></i></a>
                 {% if e.status == 'approved' %}
-                <a href="{% url 'scan_qr' e.pk %}" class="btn btn-success btn-sm" title="Attendance"><i class="fa fa-qrcode"></i></a>
+                <a href="{% url 'scan_qr' e.pk %}" class="btn btn-success btn-sm fw-bold" title="Attendance">
+                  <i class="fa fa-clipboard-check me-1"></i>Attendance
+                </a>
                 {% endif %}
               </div>
             </td>

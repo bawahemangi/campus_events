@@ -251,6 +251,7 @@
     {% if user.is_student %}
       <a class="nav-link" href="{% url 'student_dashboard' %}"><i class="fa fa-th-large me-1"></i>My Dashboard</a>
       <a class="nav-link" href="{% url 'leaderboard' %}"><i class="fa fa-trophy me-1"></i>Leaderboard</a>
+      <a class="nav-link" href="{% url 'payment_history' %}"><i class="fa fa-receipt me-1"></i>Payments</a>
     {% elif user.role == 'organizer' %}
       <a class="nav-link" href="{% url 'organizer_dashboard' %}"><i class="fa fa-th-large me-1"></i>My Dashboard</a>
       <a class="nav-link" href="{% url 'create_event' %}"><i class="fa fa-plus me-1"></i>Create Event</a>
@@ -270,7 +271,7 @@
       <div class="notif-dropdown" id="notifDropdown">
         <div class="p-3 border-bottom fw-bold d-flex justify-content-between align-items-center">
           <span>Notifications</span>
-          <small class="text-muted" style="font-weight:400">click to dismiss</small>
+          <a href="/events/notifications/all/" class="text-primary" style="font-size:.8rem;font-weight:500">View all</a>
         </div>
         <div id="notifList"><div class="p-3 text-muted text-center">Loading...</div></div>
       </div>
@@ -349,16 +350,20 @@ function loadNotifications() {
         listEl.innerHTML = '<div class="p-3 text-muted text-center">No new notifications</div>';
       } else {
         listEl.innerHTML = data.notifications.map(n => `
-          <div class="notif-item" data-id="${n.id}">
+          <div class="notif-item" data-id="${n.id}" data-link="${n.link || ''}">
             <div class="notif-title">${n.title}</div>
-            <div>${n.message.substring(0,80)}...</div>
+            <div>${n.message.substring(0,80)}${n.message.length > 80 ? '...' : ''}</div>
             <div class="notif-time mt-1"><i class="fa fa-clock me-1"></i>${n.created_at}</div>
           </div>`).join('');
         // Mark as read on click
         listEl.querySelectorAll('.notif-item').forEach(el => {
+          el.style.cursor = 'pointer';
           el.addEventListener('click', () => {
             fetch(`/events/notifications/${el.dataset.id}/read/`, {method:'POST', headers:{'X-CSRFToken': getCookie('csrftoken')}})
-              .then(() => { el.remove(); loadNotifications(); });
+              .then(() => {
+                el.remove(); loadNotifications();
+                if (el.dataset.link) window.location.href = el.dataset.link;
+              });
           });
         });
       }

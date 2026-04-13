@@ -28,7 +28,12 @@
           </div>
           {% if event.status == 'pending' %}
           <a href="{% url 'approve_event' event.pk %}" class="btn btn-success w-100 mb-2"><i class="fa fa-check me-1"></i>Approve</a>
-          <button class="btn btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#rejectModal"><i class="fa fa-times me-1"></i>Reject</button>
+          <button class="btn btn-outline-danger w-100 mb-2" data-bs-toggle="modal" data-bs-target="#rejectModal"><i class="fa fa-times me-1"></i>Reject</button>
+          {% endif %}
+          {% if event.status == 'approved' %}
+          <a href="{% url 'admin_attendance' event.pk %}" class="btn btn-primary w-100 mb-2">
+            <i class="fa fa-clipboard-check me-1"></i>Manage Attendance
+          </a>
           {% endif %}
         </div>
       </div>

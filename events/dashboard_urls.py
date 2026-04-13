@@ -2,7 +2,7 @@ from django.urls import path
 from events.dashboard_views import (
     dashboard, student_dashboard, organizer_dashboard,
     admin_dashboard, approve_event, reject_event,
-    admin_event_detail, analytics
+    admin_event_detail, analytics, admin_attendance
 )
 
 urlpatterns = [
@@ -14,4 +14,5 @@ urlpatterns = [
     path('admin/approve/<int:pk>/', approve_event, name='approve_event'),
     path('admin/reject/<int:pk>/', reject_event, name='reject_event'),
     path('admin/analytics/', analytics, name='analytics'),
+    path('admin/attendance/<int:pk>/', admin_attendance, name='admin_attendance'),
 ]

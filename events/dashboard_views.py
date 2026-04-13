@@ -277,3 +277,25 @@ def analytics(request):
         'monthly_data': list(monthly_data),
     }
     return render(request, 'dashboard/analytics.html', context)
+
+
+@login_required
+def admin_attendance(request, pk):
+    """Admin can view and manage attendance for any event."""
+    if not request.user.is_admin_user:
+        messages.error(request, 'Access denied.')
+        return redirect('dashboard')
+
+    event = get_object_or_404(Event, pk=pk)
+    registrations = event.registrations.select_related('student', 'payment').order_by(
+        'student__last_name', 'student__first_name'
+    )
+
+    context = {
+        'event':          event,
+        'registrations':  registrations,
+        'attended_count': event.attendance_count,
+        'total_count':    event.registered_count,
+        'is_admin_view':  True,
+    }
+    return render(request, 'events/scan_qr.html', context)

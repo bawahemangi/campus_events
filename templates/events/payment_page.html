@@ -18,8 +18,19 @@
   #paymentStatus { display: none; border-radius: 12px; padding: 1.5rem; text-align: center; }
   .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* UPI method pills shown below pay button */
+  .upi-pills { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 14px; }
+  .upi-pill {
+    display: flex; align-items: center; gap: 6px;
+    background: #f5f3ff; border: 1.5px solid #ddd6fe;
+    border-radius: 20px; padding: 5px 12px; font-size: .78rem;
+    font-weight: 600; color: #5b21b6;
+  }
+  .upi-pill img { width: 18px; height: 18px; object-fit: contain; }
 </style>
 {% endblock %}
+
 {% block content %}
 <div class="page-header">
   <div class="container">
@@ -30,7 +41,8 @@
 
 <div class="container pb-5">
   <div class="row justify-content-center g-4">
-    <!-- Order Summary -->
+
+    <!-- ── Order Summary ── -->
     <div class="col-lg-4 order-lg-2">
       <div class="card pay-card">
         <div class="pay-header">
@@ -72,7 +84,7 @@
       </div>
     </div>
 
-    <!-- Payment Form -->
+    <!-- ── Payment Form ── -->
     <div class="col-lg-5 order-lg-1">
       <div class="card">
         <div class="card-body p-4">
@@ -86,7 +98,6 @@
           </div>
           {% endif %}
 
-          <!-- Payment status display -->
           <div id="paymentStatus"></div>
 
           <div id="paymentForm">
@@ -121,13 +132,31 @@
             </button>
             {% endif %}
 
-            <a href="{% url 'event_detail' event.pk %}" class="btn btn-outline-secondary w-100 mt-2">
+            <!-- UPI app pills (visual only — actual selection happens inside Razorpay popup) -->
+            <div class="upi-pills">
+              <span class="upi-pill">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Google_Pay_Logo.svg/512px-Google_Pay_Logo.svg.png" alt="GPay"> GPay
+              </span>
+              <span class="upi-pill">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Paytm_Logo_%28standalone%29.svg/512px-Paytm_Logo_%28standalone%29.svg.png" alt="Paytm"> Paytm
+              </span>
+              <span class="upi-pill">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/PhonePe_Logo.svg/512px-PhonePe_Logo.svg.png" alt="PhonePe"> PhonePe
+              </span>
+              <span class="upi-pill">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Amazon_Pay_logo.svg/512px-Amazon_Pay_logo.svg.png" alt="Amazon Pay"> Amazon Pay
+              </span>
+              <span class="upi-pill">+ more</span>
+            </div>
+
+            <a href="{% url 'event_detail' event.pk %}" class="btn btn-outline-secondary w-100 mt-3">
               Cancel & Go Back
             </a>
           </div>
         </div>
       </div>
     </div>
+
   </div>
 </div>
 {% endblock %}
@@ -137,7 +166,7 @@
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 {% endif %}
 <script>
-const CSRF   = '{{ csrf_token }}';
+const CSRF     = '{{ csrf_token }}';
 const ORDER_ID = '{{ order_id }}';
 const AMOUNT   = {{ amount_paise }};
 const KEY_ID   = '{{ razorpay_key }}';
@@ -158,8 +187,8 @@ function showStatus(html, success) {
   const el = document.getElementById('paymentStatus');
   el.style.display = 'block';
   el.style.background = success ? '#06d6a015' : '#ff6b6b15';
-  el.style.border = success ? '2px solid #06d6a0' : '2px solid #ff6b6b44';
-  el.style.color = success ? '#0ab07a' : '#e74c3c';
+  el.style.border      = success ? '2px solid #06d6a0' : '2px solid #ff6b6b44';
+  el.style.color       = success ? '#0ab07a' : '#e74c3c';
   el.innerHTML = html;
   document.getElementById('paymentForm').style.opacity = success ? '.4' : '1';
 }
@@ -195,12 +224,52 @@ function openRazorpay() {
     name:        'CampusEvents',
     description: '{{ event.title|escapejs }}',
     order_id:    ORDER_ID,
+
+    // ── Enable ALL payment methods including every UPI app ──
+    method: {
+      upi:        true,   // ✅ GPay, PhonePe, Paytm, Amazon Pay, BHIM, any UPI
+      card:       true,   // ✅ Debit & Credit cards
+      netbanking: true,   // ✅ All major banks
+      wallet:     true,   // ✅ Paytm wallet, Amazon Pay wallet, Mobikwik
+      emi:        true,   // ✅ EMI on credit cards
+      paylater:   true,   // ✅ Simpl, LazyPay, ICICI PayLater
+    },
+
     prefill: {
       name:    '{{ student_name|escapejs }}',
       email:   '{{ student_email|escapejs }}',
       contact: document.getElementById('phoneField').value,
+      method:  'upi',   // ← opens UPI tab first when popup loads
     },
+
+    // ── Show UPI first, then everything else ──
+    config: {
+      display: {
+        blocks: {
+          upi_block: {
+            name: "Pay via UPI",
+            instruments: [
+              { method: "upi", flows: ["collect", "intent", "qr"] }
+            ]
+          },
+          other: {
+            name: "Other Payment Methods",
+            instruments: [
+              { method: "card" },
+              { method: "netbanking" },
+              { method: "wallet" },
+              { method: "emi" },
+              { method: "paylater" },
+            ]
+          }
+        },
+        sequence: ["block.upi_block", "block.other"],
+        preferences: { show_default_blocks: false }
+      }
+    },
+
     theme: { color: '#6c47ff' },
+
     handler: function(response) {
       verifyWithServer({
         razorpay_order_id:   response.razorpay_order_id,
@@ -215,12 +284,24 @@ function openRazorpay() {
       }
     }
   };
+
   const rzp = new Razorpay(options);
+
+  // Show UPI-specific error if it fails
+  rzp.on('payment.failed', function(response) {
+    showStatus(
+      `<i class="fa fa-times-circle fa-2x mb-2"></i><br>
+       <strong>Payment Failed</strong><br>
+       ${response.error.description}<br>
+       <small>Error code: ${response.error.code}</small>`,
+      false
+    );
+  });
+
   rzp.open();
 }
 
 function simulatePayment() {
-  // Demo mode — simulate a successful payment without real Razorpay
   setLoading(true);
   setTimeout(() => {
     verifyWithServer({

@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CampusEvents — Your College Life, All in One Place</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #6c47ff;
+      --navy: #0a0e27;
+      --accent: #ff6b6b;
+      --teal: #06d6a0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; background: #f0f2f8; }
+    h1,h2,h3,h4,h5,h6 { font-family: 'Syne', sans-serif; }
+
+    /* ── Navbar ── */
+    .navbar-home {
+      position: absolute; top: 0; left: 0; right: 0; z-index: 100;
+      background: linear-gradient(to bottom, rgba(0,0,0,.65), transparent);
+      padding: 1.25rem 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .navbar-brand-home { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.5rem; color: #fff; text-decoration: none; }
+    .navbar-brand-home span { color: var(--primary); }
+    .navbar-links { display: flex; gap: .75rem; align-items: center; }
+    .navbar-links a {
+      color: rgba(255,255,255,.85); text-decoration: none;
+      padding: .4rem .9rem; border-radius: 8px; font-weight: 500; font-size: .9rem;
+      transition: all .2s;
+    }
+    .navbar-links a:hover { background: rgba(255,255,255,.15); color: #fff; }
+    .btn-nav-login {
+      background: var(--primary); color: #fff !important;
+      border-radius: 10px; padding: .45rem 1.2rem !important; font-weight: 700 !important;
+    }
+    .btn-nav-login:hover { background: #5535e0 !important; }
+
+    /* ── HERO SLIDER ── */
+    .hero-slider {
+      position: relative; width: 100%; height: 85vh; min-height: 520px;
+      overflow: hidden; background: var(--navy);
+    }
+    .slide {
+      position: absolute; inset: 0;
+      opacity: 0; transition: opacity .9s ease;
+      will-change: opacity;
+    }
+    .slide.active { opacity: 1; z-index: 2; }
+    .slide.prev   { opacity: 0; z-index: 1; }
+
+    .slide-bg {
+      position: absolute; inset: 0;
+      background-size: cover;
+      background-position: center;
+      transform: scale(1.04);
+      transition: transform 8s ease;
+    }
+    .slide.active .slide-bg { transform: scale(1); }
+
+    /* Dark overlay — lighter for dark-text slides */
+    .slide-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(
+        135deg,
+        rgba(10,14,39,.82) 0%,
+        rgba(10,14,39,.4) 60%,
+        transparent 100%
+      );
+    }
+    .slide-overlay.light-text {
+      background: linear-gradient(135deg, rgba(10,14,39,.82) 0%, rgba(10,14,39,.4) 60%, transparent 100%);
+    }
+    .slide-overlay.dark-text {
+      background: linear-gradient(135deg, rgba(255,255,255,.75) 0%, rgba(255,255,255,.35) 60%, transparent 100%);
+    }
+
+    /* Slide content */
+    .slide-content {
+      position: absolute; inset: 0;
+      display: flex; align-items: flex-end;
+      padding: 0 6% 7%;
+      z-index: 3;
+    }
+    .slide-inner { max-width: 680px; }
+    .slide-tag {
+      display: inline-block;
+      background: var(--primary); color: #fff;
+      font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+      padding: 5px 14px; border-radius: 20px; margin-bottom: 1rem;
+    }
+    .slide-tag.upcoming  { background: var(--primary); }
+    .slide-tag.past      { background: #ff6b6b; }
+    .slide-tag.annual    { background: #ffd93d; color: #333; }
+    .slide-tag.gallery   { background: #06d6a0; color: #0a0e27; }
+    .slide-tag.custom    { background: #1a237e; }
+
+    .slide-title {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2rem, 5vw, 3.8rem);
+      font-weight: 800; line-height: 1.1;
+      color: #fff; margin-bottom: .75rem;
+      text-shadow: 0 2px 12px rgba(0,0,0,.3);
+    }
+    .slide-title.dark-text { color: #0a0e27; text-shadow: none; }
+
+    .slide-subtitle {
+      font-size: clamp(.9rem, 2vw, 1.15rem);
+      color: rgba(255,255,255,.85);
+      margin-bottom: 1.5rem; line-height: 1.6;
+      text-shadow: 0 1px 6px rgba(0,0,0,.2);
+      max-width: 520px;
+    }
+    .slide-subtitle.dark-text { color: rgba(10,14,39,.75); text-shadow: none; }
+
+    .slide-cta {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--primary); color: #fff;
+      padding: .75rem 1.8rem; border-radius: 12px;
+      font-weight: 700; font-size: 1rem; text-decoration: none;
+      box-shadow: 0 4px 20px rgba(108,71,255,.4);
+      transition: transform .2s, box-shadow .2s;
+    }
+    .slide-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(108,71,255,.5); color: #fff; }
+    .slide-cta.annual { background: #ffd93d; color: #333; box-shadow: 0 4px 20px rgba(255,217,61,.4); }
+    .slide-cta.past   { background: #ff6b6b; box-shadow: 0 4px 20px rgba(255,107,107,.4); }
+    .slide-cta.gallery{ background: #06d6a0; color: #0a0e27; }
+
+    /* Slide counter / progress bar */
+    .slide-progress {
+      position: absolute; bottom: 0; left: 0; right: 0; height: 4px;
+      background: rgba(255,255,255,.2); z-index: 10;
+    }
+    .slide-progress-bar {
+      height: 100%; background: var(--primary);
+      transition: width linear; width: 0%;
+    }
+
+    /* Prev / Next arrows */
+    .slider-arrow {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      z-index: 10; background: rgba(255,255,255,.15);
+      border: 1.5px solid rgba(255,255,255,.3);
+      color: #fff; border-radius: 50%;
+      width: 52px; height: 52px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all .2s; backdrop-filter: blur(4px);
+    }
+    .slider-arrow:hover { background: rgba(255,255,255,.3); }
+    .slider-arrow.prev { left: 24px; }
+    .slider-arrow.next { right: 24px; }
+
+    /* Dot indicators */
+    .slider-dots {
+      position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 8px; z-index: 10;
+    }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: rgba(255,255,255,.4); cursor: pointer; transition: all .3s;
+      border: none;
+    }
+    .dot.active { background: #fff; width: 28px; border-radius: 4px; }
+
+    /* Thumbnail strip */
+    .thumb-strip {
+      position: absolute; bottom: 2.5rem; right: 1.5rem;
+      display: flex; gap: 8px; z-index: 10;
+    }
+    .thumb {
+      width: 64px; height: 44px; border-radius: 8px; overflow: hidden;
+      cursor: pointer; opacity: .5; transition: opacity .2s;
+      border: 2px solid transparent;
+    }
+    .thumb.active, .thumb:hover { opacity: 1; border-color: var(--primary); }
+    .thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* Slide count badge */
+    .slide-count {
+      position: absolute; top: 1.5rem; right: 1.5rem; z-index: 10;
+      background: rgba(0,0,0,.45); color: rgba(255,255,255,.85);
+      padding: 4px 12px; border-radius: 20px; font-size: .78rem;
+      backdrop-filter: blur(4px); letter-spacing: .5px;
+    }
+
+    /* Autoplay toggle */
+    .autoplay-btn {
+      position: absolute; top: 1.5rem; left: 50%; transform: translateX(-50%);
+      z-index: 10; background: rgba(0,0,0,.4); color: rgba(255,255,255,.8);
+      border: none; border-radius: 20px; padding: 4px 14px;
+      font-size: .75rem; cursor: pointer; backdrop-filter: blur(4px);
+      transition: background .2s;
+    }
+    .autoplay-btn:hover { background: rgba(0,0,0,.6); color: #fff; }
+
+    /* ── BELOW SLIDER ── */
+    .section-head { font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: .8px; color: var(--primary); margin-bottom: 1rem; }
+
+    /* Upcoming strip */
+    .upcoming-strip { background: var(--navy); padding: 2.5rem 0; }
+    .upcoming-strip h3 { color: #fff; font-size: 1.3rem; margin-bottom: 1.25rem; }
+    .event-chip {
+      background: rgba(255,255,255,.08); border-radius: 14px; padding: 1rem 1.25rem;
+      color: #fff; text-decoration: none; transition: all .2s;
+      border: 1px solid rgba(255,255,255,.1); display: block;
+    }
+    .event-chip:hover { background: rgba(108,71,255,.25); border-color: var(--primary); color: #fff; transform: translateY(-2px); }
+    .event-chip .chip-date { font-size: .75rem; color: rgba(255,255,255,.55); margin-bottom: 4px; }
+    .event-chip .chip-title { font-weight: 700; font-size: .95rem; }
+    .event-chip .chip-venue { font-size: .78rem; color: rgba(255,255,255,.5); margin-top: 2px; }
+
+    /* Stat numbers */
+    .stat-row { background: #fff; padding: 2.5rem 0; border-bottom: 1px solid #e5e7eb; }
+    .stat-num { font-family: 'Syne', sans-serif; font-size: 2.8rem; font-weight: 800; color: var(--primary); line-height: 1; }
+    .stat-desc { color: #6b7280; font-size: .9rem; margin-top: 4px; }
+
+    /* Past events cards */
+    .past-section { background: #f8f9ff; padding: 3rem 0; }
+    .past-card { border-radius: 14px; overflow: hidden; background: #fff; box-shadow: 0 4px 20px rgba(0,0,0,.07); transition: transform .2s; }
+    .past-card:hover { transform: translateY(-4px); }
+    .past-card img { width: 100%; height: 180px; object-fit: cover; }
+    .past-card .placeholder-img {
+      width: 100%; height: 180px;
+      background: linear-gradient(135deg, var(--primary), #9b59b6);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 3rem; color: rgba(255,255,255,.4);
+    }
+
+    /* CTA banner */
+    .cta-banner {
+      background: linear-gradient(135deg, var(--primary), #1a237e);
+      padding: 4rem 2rem; text-align: center; color: #fff;
+    }
+    .cta-banner h2 { font-size: 2.2rem; font-weight: 800; margin-bottom: .75rem; }
+    .cta-banner p { font-size: 1.1rem; opacity: .8; margin-bottom: 1.5rem; }
+
+    /* Footer */
+    footer { background: var(--navy); color: rgba(255,255,255,.45); text-align: center; padding: 1.5rem; font-size: .85rem; }
+    footer a { color: var(--primary); }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .slider-arrow { width: 40px; height: 40px; }
+      .thumb-strip  { display: none; }
+      .slide-content { padding: 0 5% 10%; }
+      .navbar-home { padding: .75rem 1rem; }
+    }
+
+    /* Animation for slide entry */
+    .slide.active .slide-inner > * {
+      animation: slideUp .7s ease both;
+    }
+    .slide.active .slide-tag      { animation-delay: .1s; }
+    .slide.active .slide-title    { animation-delay: .25s; }
+    .slide.active .slide-subtitle { animation-delay: .4s; }
+    .slide.active .slide-cta      { animation-delay: .55s; }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Navbar ── -->
+<div class="navbar-home">
+  <a class="navbar-brand-home" href="{% url 'home' %}">Campus<span>Events</span></a>
+  <div class="navbar-links">
+    <a href="{% url 'event_list' %}"><i class="fa fa-calendar me-1"></i>Events</a>
+    <a href="{% url 'leaderboard' %}"><i class="fa fa-trophy me-1"></i>Leaderboard</a>
+    {% if user.is_authenticated %}
+      <a href="{% url 'dashboard' %}"><i class="fa fa-th-large me-1"></i>Dashboard</a>
+      <a href="{% url 'logout' %}">Logout</a>
+    {% else %}
+      <a href="{% url 'login' %}" class="btn-nav-login"><i class="fa fa-sign-in-alt me-1"></i>Login</a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── HERO SLIDER ── -->
+<div class="hero-slider" id="heroSlider">
+
+  {% if slides %}
+    {% for slide in slides %}
+    <div class="slide{% if forloop.first %} active{% endif %}" data-index="{{ forloop.counter0 }}">
+      <!-- Background image -->
+      <div class="slide-bg"
+        style="background-image: url('{% if slide.image %}{{ slide.image.url }}{% else %}/static/img/placeholder.jpg{% endif %}')">
+      </div>
+      <!-- Overlay -->
+      <div class="slide-overlay {% if slide.text_color == 'dark' %}dark-text{% else %}light-text{% endif %}"></div>
+      <!-- Content -->
+      <div class="slide-content">
+        <div class="slide-inner">
+          <span class="slide-tag {{ slide.slide_type }}">
+            {% if slide.slide_type == 'upcoming' %}🚀 Upcoming
+            {% elif slide.slide_type == 'past' %}📸 Highlights
+            {% elif slide.slide_type == 'annual' %}⭐ Annual Event
+            {% elif slide.slide_type == 'gallery' %}🎨 Gallery
+            {% else %}📌 Featured{% endif %}
+          </span>
+          <h1 class="slide-title {% if slide.text_color == 'dark' %}dark-text{% endif %}">
+            {{ slide.title }}
+          </h1>
+          {% if slide.subtitle %}
+          <p class="slide-subtitle {% if slide.text_color == 'dark' %}dark-text{% endif %}">
+            {{ slide.subtitle }}
+          </p>
+          {% endif %}
+          {% if slide.cta_text %}
+          <a href="{{ slide.final_cta_url }}" class="slide-cta {{ slide.slide_type }}">
+            {{ slide.cta_text }} <i class="fa fa-arrow-right"></i>
+          </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+    <!-- Arrows -->
+    <button class="slider-arrow prev" onclick="sliderPrev()" aria-label="Previous">
+      <i class="fa fa-chevron-left"></i>
+    </button>
+    <button class="slider-arrow next" onclick="sliderNext()" aria-label="Next">
+      <i class="fa fa-chevron-right"></i>
+    </button>
+
+    <!-- Dots -->
+    <div class="slider-dots" id="sliderDots">
+      {% for slide in slides %}
+      <button class="dot {% if forloop.first %}active{% endif %}"
+        onclick="goToSlide({{ forloop.counter0 }})" aria-label="Slide {{ forloop.counter }}"></button>
+      {% endfor %}
+    </div>
+
+    <!-- Thumbnail strip -->
+    <div class="thumb-strip" id="thumbStrip">
+      {% for slide in slides %}
+      <div class="thumb {% if forloop.first %}active{% endif %}"
+        onclick="goToSlide({{ forloop.counter0 }})"
+        title="{{ slide.title }}">
+        {% if slide.image %}
+          <img src="{{ slide.image.url }}" alt="{{ slide.title }}" loading="lazy">
+        {% else %}
+          <img src="/static/img/placeholder.jpg" alt="No image" loading="lazy">
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Slide count -->
+    <div class="slide-count" id="slideCount">1 / {{ slides|length }}</div>
+
+    <!-- Autoplay toggle -->
+    <button class="autoplay-btn" id="autoplayBtn" onclick="toggleAutoplay()">
+      <i class="fa fa-pause me-1"></i>Auto
+    </button>
+
+    <!-- Progress bar -->
+    <div class="slide-progress"><div class="slide-progress-bar" id="progressBar"></div></div>
+
+  {% else %}
+    <!-- Fallback when no slides configured -->
+    <div class="slide active">
+      <div class="slide-bg" style="background: linear-gradient(135deg, #0a0e27 0%, #1a237e 50%, #6c47ff 100%)"></div>
+      <div class="slide-content">
+        <div class="slide-inner">
+          <span class="slide-tag">🎓 Welcome</span>
+          <h1 class="slide-title">Your Campus.<br>Your Events.</h1>
+          <p class="slide-subtitle">Discover, register, and participate in events happening across your college.</p>
+          <a href="{% url 'event_list' %}" class="slide-cta">
+            Browse Events <i class="fa fa-arrow-right"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+    {% if user.is_admin_user %}
+    <div style="position:absolute;bottom:2rem;right:2rem;z-index:10">
+      <a href="{% url 'slider_create' %}" class="btn btn-warning fw-bold">
+        <i class="fa fa-plus me-2"></i>Add First Slide
+      </a>
+    </div>
+    {% endif %}
+  {% endif %}
+</div>
+
+<!-- ── UPCOMING EVENTS STRIP ── -->
+{% if upcoming %}
+<div class="upcoming-strip">
+  <div class="container">
+    <h3><i class="fa fa-rocket me-2 text-primary"></i>What's Coming Up</h3>
+    <div class="row g-3">
+      {% for event in upcoming %}
+      <div class="col-6 col-md-4 col-lg-2">
+        <a href="{% url 'event_detail' event.pk %}" class="event-chip">
+          <div class="chip-date">{{ event.date|date:"M d" }} · {{ event.start_time|time:"g A" }}</div>
+          <div class="chip-title">{{ event.title|truncatechars:32 }}</div>
+          <div class="chip-venue"><i class="fa fa-location-dot me-1"></i>{{ event.venue|truncatechars:22 }}</div>
+        </a>
+      </div>
+      {% endfor %}
+      <div class="col-6 col-md-4 col-lg-2">
+        <a href="{% url 'event_list' %}" class="event-chip" style="height:100%;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700">
+          <i class="fa fa-calendar-days text-primary"></i> See All Events
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── STATS ROW ── -->
+<div class="stat-row">
+  <div class="container">
+    <div class="row g-4 text-center">
+      <div class="col-6 col-md-3">
+        <div class="stat-num">{{ upcoming.count }}+</div>
+        <div class="stat-desc">Upcoming Events</div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-num" style="color:#ff6b6b">{{ slides|length }}</div>
+        <div class="stat-desc">Featured on Slider</div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-num" style="color:#06d6a0">100%</div>
+        <div class="stat-desc">Free to Register</div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-num" style="color:#ffd93d">🎓</div>
+        <div class="stat-desc">Earn Certificates</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PAST EVENT HIGHLIGHTS ── -->
+{% if recent_past %}
+<div class="past-section">
+  <div class="container">
+    <div class="section-head"><i class="fa fa-star me-2"></i>From Our Archives</div>
+    <div class="row g-4">
+      {% for event in recent_past %}
+      <div class="col-md-4">
+        <a href="{% url 'event_detail' event.pk %}" class="text-decoration-none">
+          <div class="past-card">
+            {% if event.poster %}
+            <img src="{{ event.poster.url }}" alt="{{ event.title }}">
+            {% else %}
+            <div class="placeholder-img">
+              {% if event.category == 'technical' %}💻{% elif event.category == 'cultural' %}🎭{% elif event.category == 'sports' %}🏆{% else %}📅{% endif %}
+            </div>
+            {% endif %}
+            <div class="p-3">
+              <div class="text-muted small mb-1">{{ event.date|date:"M d, Y" }} · {{ event.venue }}</div>
+              <h6 class="fw-bold text-dark mb-1">{{ event.title }}</h6>
+              {% if event.average_rating > 0 %}
+              <div class="text-warning small"><i class="fa fa-star me-1"></i>{{ event.average_rating }} · {{ event.registered_count }} attended</div>
+              {% else %}
+              <div class="text-muted small">{{ event.registered_count }} attended</div>
+              {% endif %}
+            </div>
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── CTA BANNER ── -->
+<div class="cta-banner">
+  <h2>Ready to Join the Action?</h2>
+  <p>Register for events, earn certificates, and climb the leaderboard.</p>
+  {% if user.is_authenticated %}
+  <a href="{% url 'event_list' %}" class="btn btn-light btn-lg fw-bold px-5">
+    <i class="fa fa-calendar-check me-2"></i>Browse All Events
+  </a>
+  {% else %}
+  <div class="d-flex gap-3 justify-content-center flex-wrap">
+    <a href="{% url 'register_student' %}" class="btn btn-light btn-lg fw-bold px-4">
+      <i class="fa fa-graduation-cap me-2"></i>Join as Student
+    </a>
+    <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg px-4">
+      <i class="fa fa-sign-in-alt me-2"></i>Login
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+<footer>
+  <p>© {% now "Y" %} CampusEvents &nbsp;|&nbsp; <a href="{% url 'event_list' %}">Events</a> &nbsp;·&nbsp; <a href="{% url 'leaderboard' %}">Leaderboard</a></p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ── Slider logic ────────────────────────────────────────────────────
+const slides     = document.querySelectorAll('.slide');
+const dots       = document.querySelectorAll('.dot');
+const thumbs     = document.querySelectorAll('.thumb');
+const countEl    = document.getElementById('slideCount');
+const progressEl = document.getElementById('progressBar');
+const TOTAL      = slides.length;
+const DURATION   = 6000;  // ms per slide
+
+let current   = 0;
+let autoplay  = true;
+let timer     = null;
+let progTimer = null;
+
+function goToSlide(n) {
+  if (n === current || TOTAL <= 1) return;
+  slides[current].classList.remove('active');
+  dots[current]?.classList.remove('active');
+  thumbs[current]?.classList.remove('active');
+
+  current = (n + TOTAL) % TOTAL;
+
+  slides[current].classList.add('active');
+  dots[current]?.classList.add('active');
+  thumbs[current]?.classList.add('active');
+  if (countEl) countEl.textContent = `${current + 1} / ${TOTAL}`;
+
+  if (autoplay) resetAutoplay();
+}
+
+function sliderNext() { goToSlide(current + 1); }
+function sliderPrev() { goToSlide(current - 1); }
+
+function startProgress() {
+  if (!progressEl) return;
+  progressEl.style.transition = 'none';
+  progressEl.style.width = '0%';
+  setTimeout(() => {
+    progressEl.style.transition = `width ${DURATION}ms linear`;
+    progressEl.style.width = '100%';
+  }, 50);
+}
+
+function resetAutoplay() {
+  clearInterval(timer);
+  clearTimeout(progTimer);
+  startProgress();
+  timer = setInterval(() => goToSlide(current + 1), DURATION);
+}
+
+function toggleAutoplay() {
+  autoplay = !autoplay;
+  const btn = document.getElementById('autoplayBtn');
+  if (autoplay) {
+    btn.innerHTML = '<i class="fa fa-pause me-1"></i>Auto';
+    resetAutoplay();
+  } else {
+    clearInterval(timer);
+    if (progressEl) progressEl.style.width = '0%';
+    btn.innerHTML = '<i class="fa fa-play me-1"></i>Auto';
+  }
+}
+
+// Keyboard navigation
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight') sliderNext();
+  if (e.key === 'ArrowLeft')  sliderPrev();
+});
+
+// Touch / swipe support
+let touchStartX = 0;
+const slider = document.getElementById('heroSlider');
+if (slider) {
+  slider.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+  slider.addEventListener('touchend',   e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 50) dx < 0 ? sliderNext() : sliderPrev();
+  });
+}
+
+// Start autoplay
+if (TOTAL > 1) resetAutoplay();
+</script>
+</body>
+</html>

@@ -6,9 +6,10 @@ from django.conf.urls.static import static
 from django.shortcuts import redirect
 
 urlpatterns = [
+    path('slider/', include('events.slider_urls')),
     path('admin/', admin.site.urls),
     path('users/', include('users.urls')),
     path('events/', include('events.urls')),
-    path('', lambda request: redirect('dashboard'), name='home'),
+    path('', include('events.home_urls')),
     path('dashboard/', include('events.dashboard_urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

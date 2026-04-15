@@ -81,6 +81,18 @@ e5 = create_event(
     'Industry leaders share their journeys. Panel discussion, networking session and pitching competition.',
     'seminar', org2, 10, 10, 14, 'Seminar Hall B', 200
 )
+# Paid event
+e_paid = create_event(
+    'National Level Hackathon 2024',
+    'A 48-hour competitive hackathon open to all college students. Cash prizes worth ₹1,00,000. Teams of 2-4. Build solutions for Smart India challenges.',
+    'technical', org1, 20, 9, 21, 'Innovation Hub, Block D', 100
+)
+if not e_paid.is_paid:
+    e_paid.is_paid = True
+    e_paid.registration_fee = 299
+    e_paid.save()
+    print("  💰 Marked as paid event ₹299")
+
 # Past events
 e6 = create_event(
     'Web Dev Bootcamp',
@@ -158,3 +170,69 @@ print("   Organizer: coding_club / pass1234")
 print("   Organizer: cultural_club / pass1234")
 print("   Student:   student1 / pass1234")
 print("   Student:   student2 / pass1234")
+
+
+# ── Slider Items ───────────────────────────────────────────────────
+print("\n🖼️  Creating slider items...")
+from events.models import SliderItem
+
+slider_data = [
+    {
+        'title': 'Annual Tech Fest 2024',
+        'subtitle': '24-hour Hackathon · 500+ Students · ₹1,00,000 in Prizes',
+        'slide_type': 'annual',
+        'linked_event': e1,
+        'cta_text': 'Register Now',
+        'text_color': 'light',
+        'order': 0,
+    },
+    {
+        'title': 'Cultural Night — A Night to Remember',
+        'subtitle': 'Music · Dance · Drama · Art — Join Us This Semester',
+        'slide_type': 'upcoming',
+        'linked_event': e2,
+        'cta_text': 'View Event',
+        'text_color': 'light',
+        'order': 1,
+    },
+    {
+        'title': 'Web Dev Bootcamp — Past Highlights',
+        'subtitle': '50 students learned React, Node.js and deployed live apps',
+        'slide_type': 'past',
+        'linked_event': e6,
+        'cta_text': 'See More Events',
+        'text_color': 'light',
+        'order': 2,
+    },
+    {
+        'title': 'Intra-College Cricket Tournament',
+        'subtitle': 'All departments competing · Round Robin format',
+        'slide_type': 'upcoming',
+        'linked_event': e3,
+        'cta_text': 'Register Your Team',
+        'text_color': 'light',
+        'order': 3,
+    },
+    {
+        'title': 'Entrepreneurship Summit 2024',
+        'subtitle': 'Industry leaders · Panel discussions · Pitching competition',
+        'slide_type': 'annual',
+        'linked_event': e5,
+        'cta_text': 'Learn More',
+        'text_color': 'light',
+        'order': 4,
+    },
+]
+
+for data in slider_data:
+    if not SliderItem.objects.filter(title=data['title']).exists():
+        SliderItem.objects.create(
+            created_by=admin,
+            is_active=True,
+            **data
+        )
+        print(f"  ✅ Slide: {data['title']}")
+    else:
+        print(f"  ↳  Skipping slide (exists): {data['title']}")
+
+print("\n✅ All done!")

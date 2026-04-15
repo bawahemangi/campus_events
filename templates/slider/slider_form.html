@@ -1,0 +1,285 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} — CampusEvents{% endblock %}
+{% block extra_css %}
+<style>
+  .form-section { background:#fff; border:1.5px solid #e5e7eb; border-radius:16px; padding:1.75rem; margin-bottom:1.2rem; }
+  .form-section:focus-within { border-color:#c4b5fd; }
+  .section-title { font-size:.7rem; font-weight:800; text-transform:uppercase; letter-spacing:.8px; color:var(--primary); display:flex; align-items:center; gap:10px; margin-bottom:1.25rem; }
+  .section-title::after { content:''; flex:1; height:1px; background:#e5e7eb; }
+  .field-error { font-size:.82rem; color:#e74c3c; margin-top:.25rem; }
+  .drop-zone { border:2px dashed #c4b5fd; border-radius:12px; padding:2.5rem; text-align:center; cursor:pointer; background:#fafaff; transition:all .2s; }
+  .drop-zone:hover { border-color:var(--primary); background:#f0edff; }
+  .img-preview { display:none; border-radius:12px; overflow:hidden; position:relative; }
+  .img-preview img { width:100%; max-height:240px; object-fit:cover; display:block; border-radius:12px; }
+  .remove-img { position:absolute; top:8px; right:8px; background:rgba(0,0,0,.55); color:#fff; border:none; border-radius:50%; width:28px; height:28px; cursor:pointer; font-size:12px; }
+  .live-preview { background:var(--navy); border-radius:12px; overflow:hidden; position:relative; height:200px; }
+  .live-preview .overlay { position:absolute; inset:0; background:linear-gradient(135deg,rgba(10,14,39,.8),rgba(10,14,39,.3)); }
+  .live-preview .content { position:absolute; bottom:1.25rem; left:1.25rem; right:1.25rem; color:#fff; }
+  .live-preview .bg-img { position:absolute; inset:0; background-size:cover; background-position:center; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+      <h1><i class="fa fa-{% if item %}pen{% else %}plus-circle{% endif %} me-2"></i>{{ title }}</h1>
+      <p class="mb-0 opacity-75">Changes appear on the homepage slider immediately after saving</p>
+    </div>
+    <a href="{% url 'slider_list' %}" class="btn btn-outline-light btn-sm">
+      <i class="fa fa-arrow-left me-1"></i>Back to Slider
+    </a>
+  </div>
+</div>
+
+<div class="container pb-5">
+  <div class="row g-4 justify-content-center">
+
+    <!-- Form -->
+    <div class="col-lg-7">
+
+      {% if form.non_field_errors %}
+      <div class="alert alert-danger mb-3">
+        {% for e in form.non_field_errors %}<div><i class="fa fa-exclamation-circle me-2"></i>{{ e }}</div>{% endfor %}
+      </div>
+      {% endif %}
+
+      <form method="POST" enctype="multipart/form-data" id="slideForm">
+        {% csrf_token %}
+
+        <!-- ── Content ── -->
+        <div class="form-section">
+          <div class="section-title"><i class="fa fa-text-height"></i>Slide Content</div>
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">Title <span class="text-danger">*</span></label>
+              <input type="text" name="title" id="previewTitle"
+                class="form-control form-control-lg {% if form.title.errors %}is-invalid{% endif %}"
+                placeholder="e.g. Annual Tech Fest 2024"
+                value="{{ form.title.value|default:'' }}" oninput="updatePreview()" required>
+              {% for e in form.title.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Subtitle / Tagline</label>
+              <input type="text" name="subtitle" id="previewSubtitle"
+                class="form-control {% if form.subtitle.errors %}is-invalid{% endif %}"
+                placeholder="e.g. 48-hour hackathon · Feb 10 · Innovation Lab"
+                value="{{ form.subtitle.value|default:'' }}" oninput="updatePreview()">
+              {% for e in form.subtitle.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Button Text</label>
+              <input type="text" name="cta_text" id="previewCta"
+                class="form-control" placeholder="Register Now"
+                value="{{ form.cta_text.value|default:'Learn More' }}" oninput="updatePreview()">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Button URL <span class="text-muted fw-normal">(optional)</span></label>
+              <input type="text" name="cta_url" class="form-control"
+                placeholder="/events/  (auto-filled from linked event)"
+                value="{{ form.cta_url.value|default:'' }}">
+              <div class="form-text">Leave blank to use the linked event's page</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Image ── -->
+        <div class="form-section">
+          <div class="section-title"><i class="fa fa-image"></i>Slide Image <span class="text-danger">*</span></div>
+
+          <div class="drop-zone" id="dropZone"
+            onclick="document.getElementById('id_image').click()"
+            ondragover="event.preventDefault(); this.classList.add('drag')"
+            ondragleave="this.classList.remove('drag')"
+            ondrop="handleDrop(event)">
+            <i class="fa fa-cloud-arrow-up fa-2x text-primary mb-2"></i>
+            <div class="fw-semibold">Click or drag & drop image</div>
+            <div class="text-muted small mt-1">
+              Recommended: <strong>1400 × 500 px</strong> wide banner &nbsp;·&nbsp; JPG / PNG
+            </div>
+            <input type="file" name="image" id="id_image" accept="image/*"
+              class="d-none" onchange="showPreview(this.files[0])">
+          </div>
+          {% for e in form.image.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+
+          <div class="img-preview mt-2" id="imgPreview">
+            <img id="previewBg" src="" alt="">
+            <button type="button" class="remove-img" onclick="clearImg()">✕</button>
+          </div>
+
+          {% if item and item.image %}
+          <div class="mt-2 d-flex align-items-center gap-2" id="currentImg">
+            <img src="{{ item.image.url }}" height="60" class="rounded-2 border">
+            <small class="text-muted">Current image — upload a new one to replace</small>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- ── Settings ── -->
+        <div class="form-section">
+          <div class="section-title"><i class="fa fa-sliders"></i>Slide Settings</div>
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Slide Type</label>
+              <select name="slide_type" class="form-select" onchange="updatePreview()">
+                {% for val, label in form.fields.slide_type.choices %}
+                <option value="{{ val }}" {% if form.slide_type.value == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Text Colour</label>
+              <select name="text_color" id="previewTextColor" class="form-select" onchange="updatePreview()">
+                {% for val, label in form.fields.text_color.choices %}
+                <option value="{{ val }}" {% if form.text_color.value == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Order</label>
+              <input type="number" name="order" class="form-control" min="0"
+                value="{{ form.order.value|default:'0' }}">
+              <div class="form-text">0 = first slide</div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Link to Event <span class="text-muted fw-normal">(optional)</span></label>
+              <select name="linked_event" class="form-select">
+                <option value="">— No linked event —</option>
+                {% for ev in form.fields.linked_event.queryset %}
+                <option value="{{ ev.pk }}" {% if form.linked_event.value == ev.pk|stringformat:"s" %}selected{% endif %}>
+                  {{ ev.title }} ({{ ev.date|date:"M d, Y" }})
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="is_active" id="id_is_active" role="switch"
+                  style="width:2.4rem;height:1.2rem"
+                  {% if form.is_active.value != False %}checked{% endif %}>
+                <label class="form-check-label fw-semibold ms-2" for="id_is_active">
+                  Show on homepage (active)
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <div class="d-flex gap-3">
+          <button type="submit" class="btn btn-primary btn-lg px-5 fw-bold">
+            <i class="fa fa-floppy-disk me-2"></i>
+            {% if item %}Save Changes{% else %}Add Slide{% endif %}
+          </button>
+          <a href="{% url 'slider_list' %}" class="btn btn-outline-secondary btn-lg">Cancel</a>
+        </div>
+      </form>
+    </div>
+
+    <!-- Live Preview -->
+    <div class="col-lg-4">
+      <div style="position:sticky;top:90px">
+        <div class="fw-bold mb-2 text-muted small text-uppercase" style="letter-spacing:.5px">
+          <i class="fa fa-eye me-1"></i>Live Preview
+        </div>
+        <div class="live-preview" id="livePreview">
+          <div class="bg-img" id="previewBgDiv" style="{% if item and item.image %}background-image:url('{{ item.image.url }}'){% else %}background:linear-gradient(135deg,#6c47ff,#1a237e){% endif %}"></div>
+          <div class="overlay" id="previewOverlay"></div>
+          <div class="content">
+            <div id="pvTag" style="display:inline-block;background:#6c47ff;color:#fff;font-size:.65rem;font-weight:800;text-transform:uppercase;padding:3px 10px;border-radius:20px;margin-bottom:.5rem">Upcoming</div>
+            <div id="pvTitle" style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.3rem;line-height:1.2">Your Slide Title</div>
+            <div id="pvSubtitle" style="font-size:.82rem;opacity:.75;margin:.3rem 0 .6rem"></div>
+            <div id="pvCta" style="display:inline-block;background:#6c47ff;color:#fff;font-size:.78rem;font-weight:700;padding:6px 14px;border-radius:8px">Learn More →</div>
+          </div>
+        </div>
+        <div class="text-muted mt-2" style="font-size:.75rem;text-align:center">
+          Preview is approximate — actual slider is fullscreen
+        </div>
+
+        <div class="card mt-3 p-3">
+          <div class="fw-semibold small mb-2"><i class="fa fa-info-circle text-primary me-1"></i>Image Guidelines</div>
+          <ul class="text-muted mb-0 ps-3" style="font-size:.8rem;line-height:2">
+            <li>Recommended: <strong>1400 × 500 px</strong></li>
+            <li>Use high-contrast images for text legibility</li>
+            <li>Dark images → White text overlay</li>
+            <li>Bright images → Dark text overlay</li>
+            <li>Max file size: ~5 MB</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const typeColors = {
+  upcoming:'#6c47ff', past:'#ff6b6b', annual:'#ffd93d',
+  gallery:'#06d6a0', custom:'#1a237e'
+};
+const typeLabels = {
+  upcoming:'🚀 Upcoming', past:'📸 Highlights',
+  annual:'⭐ Annual Event', gallery:'🎨 Gallery', custom:'📌 Featured'
+};
+
+function updatePreview() {
+  const title  = document.getElementById('previewTitle')?.value || 'Your Slide Title';
+  const sub    = document.getElementById('previewSubtitle')?.value || '';
+  const cta    = document.getElementById('previewCta')?.value || 'Learn More';
+  const type   = document.querySelector('[name=slide_type]')?.value || 'upcoming';
+  const color  = document.getElementById('previewTextColor')?.value || 'light';
+
+  document.getElementById('pvTitle').textContent    = title;
+  document.getElementById('pvSubtitle').textContent = sub;
+  document.getElementById('pvCta').textContent      = cta + ' →';
+
+  const col = typeColors[type] || '#6c47ff';
+  document.getElementById('pvTag').textContent      = typeLabels[type] || 'Upcoming';
+  document.getElementById('pvTag').style.background = col;
+  document.getElementById('pvCta').style.background = col;
+
+  const isDark = color === 'dark';
+  document.getElementById('pvTitle').style.color    = isDark ? '#0a0e27' : '#fff';
+  document.getElementById('pvSubtitle').style.color = isDark ? 'rgba(0,0,0,.6)' : 'rgba(255,255,255,.8)';
+  document.getElementById('previewOverlay').style.background = isDark
+    ? 'linear-gradient(135deg,rgba(255,255,255,.75),rgba(255,255,255,.3))'
+    : 'linear-gradient(135deg,rgba(10,14,39,.8),rgba(10,14,39,.3))';
+}
+
+function showPreview(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('previewBg').src = e.target.result;
+    document.getElementById('imgPreview').style.display = 'block';
+    document.getElementById('dropZone').style.display = 'none';
+    document.getElementById('previewBgDiv').style.background = 'none';
+    document.getElementById('previewBgDiv').style.backgroundImage = `url('${e.target.result}')`;
+    document.getElementById('previewBgDiv').style.backgroundSize = 'cover';
+    document.getElementById('previewBgDiv').style.backgroundPosition = 'center';
+    const cur = document.getElementById('currentImg');
+    if (cur) cur.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+function handleDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f?.type.startsWith('image/')) {
+    const dt = new DataTransfer(); dt.items.add(f);
+    document.getElementById('id_image').files = dt.files;
+    showPreview(f);
+  }
+}
+function clearImg() {
+  document.getElementById('id_image').value = '';
+  document.getElementById('imgPreview').style.display = 'none';
+  document.getElementById('dropZone').style.display = 'block';
+}
+
+updatePreview();
+</script>
+{% endblock %}

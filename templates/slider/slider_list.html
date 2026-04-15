@@ -1,0 +1,276 @@
+{% extends 'base.html' %}
+{% block title %}Manage Homepage Slider — CampusEvents{% endblock %}
+{% block extra_css %}
+<style>
+  .slide-row { border-radius: 14px; border: 1.5px solid #e5e7eb; background: #fff; margin-bottom: 12px; overflow: hidden; transition: box-shadow .2s; }
+  .slide-row:hover { box-shadow: 0 4px 20px rgba(108,71,255,.12); }
+  .slide-thumb { width: 120px; height: 80px; object-fit: cover; flex-shrink: 0; }
+  .slide-thumb-placeholder { width: 120px; height: 80px; background: linear-gradient(135deg, #6c47ff, #9b59b6); display:flex; align-items:center; justify-content:center; font-size:1.8rem; flex-shrink:0; }
+  .drag-handle { cursor: grab; color: #9ca3af; padding: 0 12px; font-size: 1.1rem; flex-shrink: 0; }
+  .drag-handle:active { cursor: grabbing; }
+  .type-badge { font-size: .65rem; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; padding: 3px 10px; border-radius: 20px; }
+  .type-upcoming  { background: #6c47ff22; color: #6c47ff; }
+  .type-past      { background: #ff6b6b22; color: #ff6b6b; }
+  .type-annual    { background: #ffd93d33; color: #b8860b; }
+  .type-gallery   { background: #06d6a022; color: #0ab07a; }
+  .type-custom    { background: #1a237e22; color: #1a237e; }
+  .toggle-switch  { cursor: pointer; }
+  .slide-row.inactive { opacity: .55; }
+  .preview-badge { position: absolute; top: 6px; left: 6px; background: rgba(0,0,0,.55); color: #fff; font-size: .65rem; border-radius: 6px; padding: 2px 8px; }
+  #sortableList .slide-row.dragging { opacity: .4; box-shadow: 0 8px 32px rgba(0,0,0,.25); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container d-flex justify-content-between align-items-center flex-wrap gap-3">
+    <div>
+      <h1><i class="fa fa-images me-2"></i>Homepage Slider</h1>
+      <p class="mb-0 opacity-75">Manage slides shown on the public homepage. Drag to reorder.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'home' %}" class="btn btn-outline-light btn-sm" target="_blank">
+        <i class="fa fa-eye me-1"></i>Preview Homepage
+      </a>
+      <a href="{% url 'slider_create' %}" class="btn btn-light fw-bold">
+        <i class="fa fa-plus me-2"></i>Add New Slide
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="container pb-5">
+
+  <!-- Stats -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3">
+        <div style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--primary)">{{ items|length }}</div>
+        <div class="text-muted small">Total Slides</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3">
+        <div style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:#06d6a0">
+          {% with active_count=0 %}
+          {% for item in items %}{% if item.is_active %}{{ forloop.counter }}{% endif %}{% endfor %}
+          {% endwith %}
+        </div>
+        <div class="text-muted small">Active Slides</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3">
+        <div style="font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;color:#ffd93d">Auto-rotate</div>
+        <div class="text-muted small">6s per slide</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3">
+        <a href="{% url 'home' %}" target="_blank" class="btn btn-outline-primary w-100 fw-semibold">
+          <i class="fa fa-external-link me-1"></i>Live Preview
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide list -->
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span><i class="fa fa-list me-2 text-primary"></i>All Slides — drag rows to reorder</span>
+      <span class="badge bg-primary rounded-pill">{{ items|length }}</span>
+    </div>
+    <div class="card-body p-3">
+      {% if items %}
+      <div id="sortableList">
+        {% for item in items %}
+        <div class="slide-row d-flex align-items-center {% if not item.is_active %}inactive{% endif %}"
+          id="slide-row-{{ item.pk }}" data-pk="{{ item.pk }}">
+
+          <!-- Drag handle -->
+          <div class="drag-handle" title="Drag to reorder">
+            <i class="fa fa-grip-vertical"></i>
+          </div>
+
+          <!-- Thumbnail -->
+          <div style="position:relative;flex-shrink:0">
+            {% if item.image %}
+            <img src="{{ item.image.url }}" class="slide-thumb" alt="{{ item.title }}">
+            {% else %}
+            <div class="slide-thumb-placeholder">🖼</div>
+            {% endif %}
+            <span class="preview-badge">#{{ item.order }}</span>
+          </div>
+
+          <!-- Info -->
+          <div class="flex-grow-1 px-3 py-2 min-w-0">
+            <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+              <span class="fw-bold text-truncate">{{ item.title }}</span>
+              <span class="type-badge type-{{ item.slide_type }}">{{ item.get_slide_type_display }}</span>
+              {% if item.linked_event %}
+              <span class="badge bg-light text-muted border" style="font-size:.65rem">
+                <i class="fa fa-link me-1"></i>{{ item.linked_event.title|truncatechars:20 }}
+              </span>
+              {% endif %}
+            </div>
+            {% if item.subtitle %}
+            <div class="text-muted small text-truncate">{{ item.subtitle }}</div>
+            {% endif %}
+            <div class="text-muted mt-1" style="font-size:.75rem">
+              <i class="fa fa-mouse-pointer me-1"></i>CTA: "{{ item.cta_text|default:"none" }}"
+              &nbsp;·&nbsp;
+              <i class="fa fa-palette me-1"></i>{{ item.get_text_color_display }}
+              &nbsp;·&nbsp;
+              Added {{ item.created_at|date:"M d, Y" }}
+            </div>
+          </div>
+
+          <!-- Active toggle -->
+          <div class="px-3 flex-shrink-0">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input toggle-switch" type="checkbox" role="switch"
+                {% if item.is_active %}checked{% endif %}
+                onchange="toggleSlide({{ item.pk }}, this)"
+                style="width:2.2rem;height:1.1rem"
+                title="Toggle visibility">
+            </div>
+            <div class="text-center" style="font-size:.65rem;color:#9ca3af;margin-top:2px">
+              {% if item.is_active %}Live{% else %}Hidden{% endif %}
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="d-flex flex-column gap-1 pe-3 flex-shrink-0">
+            <a href="{% url 'slider_edit' item.pk %}" class="btn btn-outline-primary btn-sm" title="Edit">
+              <i class="fa fa-pen"></i>
+            </a>
+            <a href="{% url 'slider_delete' item.pk %}" class="btn btn-outline-danger btn-sm" title="Delete"
+              onclick="return confirm('Delete this slide?')">
+              <i class="fa fa-trash"></i>
+            </a>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="alert alert-info mt-3 d-flex gap-2 align-items-start">
+        <i class="fa fa-info-circle text-primary mt-1 flex-shrink-0"></i>
+        <div>
+          <strong>Drag rows</strong> to reorder slides. Changes save automatically.
+          Toggle the switch to show/hide a slide without deleting it.
+          <strong>Recommended image size:</strong> 1400 × 500 px (wide banner).
+        </div>
+      </div>
+
+      {% else %}
+      <div class="text-center py-5">
+        <i class="fa fa-images fa-4x text-muted mb-3 opacity-50"></i>
+        <h5 class="text-muted">No slides yet</h5>
+        <p class="text-muted">Add your first slide to show on the homepage slider.</p>
+        <a href="{% url 'slider_create' %}" class="btn btn-primary mt-2">
+          <i class="fa fa-plus me-2"></i>Add First Slide
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Tips card -->
+  <div class="card mt-4">
+    <div class="card-header"><i class="fa fa-lightbulb me-2 text-warning"></i>Slider Tips</div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3 text-center">
+          <div style="font-size:2rem">🖼️</div>
+          <div class="fw-semibold small mt-1">Image Size</div>
+          <div class="text-muted" style="font-size:.8rem">1400×500 px recommended. Landscape orientation.</div>
+        </div>
+        <div class="col-md-3 text-center">
+          <div style="font-size:2rem">🎨</div>
+          <div class="fw-semibold small mt-1">Text Colour</div>
+          <div class="text-muted" style="font-size:.8rem">Use "White text" for dark/busy images. "Dark text" for bright images.</div>
+        </div>
+        <div class="col-md-3 text-center">
+          <div style="font-size:2rem">🔗</div>
+          <div class="fw-semibold small mt-1">Linking</div>
+          <div class="text-muted" style="font-size:.8rem">Link to an event to auto-set the CTA URL. Or enter a custom URL.</div>
+        </div>
+        <div class="col-md-3 text-center">
+          <div style="font-size:2rem">📌</div>
+          <div class="fw-semibold small mt-1">Types</div>
+          <div class="text-muted" style="font-size:.8rem">Upcoming · Past Highlight · Annual Event · Gallery · Custom Banner</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+
+// ── Toggle active/inactive ──
+function toggleSlide(pk, checkbox) {
+  fetch(`/slider/${pk}/toggle/`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json' },
+    body: JSON.stringify({})
+  })
+  .then(r => r.json())
+  .then(data => {
+    const row = document.getElementById('slide-row-' + pk);
+    row.classList.toggle('inactive', !data.is_active);
+    const label = checkbox.closest('.flex-shrink-0').querySelector('div:last-child');
+    if (label) label.textContent = data.is_active ? 'Live' : 'Hidden';
+  })
+  .catch(() => { checkbox.checked = !checkbox.checked; });
+}
+
+// ── Drag-to-reorder ──
+const list = document.getElementById('sortableList');
+if (list) {
+  let dragged = null;
+
+  list.querySelectorAll('.slide-row').forEach(row => {
+    row.draggable = true;
+    row.addEventListener('dragstart', e => {
+      dragged = row;
+      setTimeout(() => row.classList.add('dragging'), 0);
+    });
+    row.addEventListener('dragend', () => {
+      row.classList.remove('dragging');
+      saveOrder();
+    });
+    row.addEventListener('dragover', e => {
+      e.preventDefault();
+      const bounding = row.getBoundingClientRect();
+      const offset   = bounding.y + bounding.height / 2;
+      if (e.clientY < offset) {
+        list.insertBefore(dragged, row);
+      } else {
+        list.insertBefore(dragged, row.nextSibling);
+      }
+    });
+  });
+
+  function saveOrder() {
+    const pks = [...list.querySelectorAll('.slide-row')].map(r => parseInt(r.dataset.pk));
+    fetch('/slider/reorder/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+      body: JSON.stringify({ order: pks })
+    }).then(r => r.json()).then(d => {
+      if (d.success) {
+        // Update order badges
+        list.querySelectorAll('.slide-row').forEach((r, i) => {
+          const badge = r.querySelector('.preview-badge');
+          if (badge) badge.textContent = '#' + i;
+        });
+      }
+    });
+  }
+}
+</script>
+{% endblock %}

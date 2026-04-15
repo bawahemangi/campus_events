@@ -19,3 +19,12 @@ class FeedbackAdmin(admin.ModelAdmin):
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
     list_display = ['user', 'title', 'notification_type', 'is_read', 'created_at']
+
+from .models import SliderItem
+
+@admin.register(SliderItem)
+class SliderItemAdmin(admin.ModelAdmin):
+    list_display  = ['title', 'slide_type', 'is_active', 'order', 'created_at']
+    list_filter   = ['slide_type', 'is_active']
+    list_editable = ['is_active', 'order']
+    search_fields = ['title', 'subtitle']

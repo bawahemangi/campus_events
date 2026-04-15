@@ -263,3 +263,70 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notification for {self.user.username}: {self.title}"
+
+
+class SliderItem(models.Model):
+    """
+    Homepage slider item — managed entirely by admin.
+    Can be linked to an existing event OR be a standalone image/poster.
+    """
+    TYPE_CHOICES = [
+        ('upcoming',  'Upcoming Event'),
+        ('past',      'Past Event Highlight'),
+        ('annual',    'Annual/Big Event'),
+        ('gallery',   'Photo Gallery'),
+        ('custom',    'Custom Banner'),
+    ]
+
+    title       = models.CharField(max_length=200)
+    subtitle    = models.CharField(max_length=300, blank=True,
+                                   help_text='Short tagline shown under the title')
+    image       = models.ImageField(upload_to='slider/',
+                                    help_text='Recommended: 1400×500 px wide banner')
+
+    slide_type  = models.CharField(max_length=20, choices=TYPE_CHOICES, default='upcoming')
+
+    # Optional link to an existing Event
+    linked_event = models.ForeignKey(
+        Event, null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='slider_items',
+        help_text='Link to an event page (optional)'
+    )
+
+    # Optional custom CTA button
+    cta_text    = models.CharField(max_length=60, blank=True, default='Learn More',
+                                   help_text='Button label, e.g. "Register Now"')
+    cta_url     = models.CharField(max_length=300, blank=True,
+                                   help_text='Override URL (leave blank to use linked event URL)')
+
+    # Overlay text colour
+    TEXT_COLOR_CHOICES = [('light', 'White text (dark image)'), ('dark', 'Dark text (light image)')]
+    text_color  = models.CharField(max_length=10, choices=TEXT_COLOR_CHOICES, default='light')
+
+    is_active   = models.BooleanField(default=True, help_text='Show on homepage slider')
+    order       = models.PositiveIntegerField(default=0,
+                                              help_text='Lower = shown first (0, 1, 2 …)')
+
+    created_at  = models.DateTimeField(auto_now_add=True)
+    updated_at  = models.DateTimeField(auto_now=True)
+    created_by  = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL, null=True,
+        related_name='slider_items_created'
+    )
+
+    class Meta:
+        ordering = ['order', '-created_at']
+
+    def __str__(self):
+        return f"[{self.get_slide_type_display()}] {self.title} (order={self.order})"
+
+    @property
+    def final_cta_url(self):
+        """Return the effective CTA URL."""
+        if self.cta_url:
+            return self.cta_url
+        if self.linked_event:
+            return f'/events/{self.linked_event.pk}/'
+        return '/events/'

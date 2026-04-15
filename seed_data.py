@@ -16,17 +16,32 @@ from events.utils import create_notification
 print("🌱 Seeding database...")
 
 # ── Users ──────────────────────────────────────────────────────────────
-def get_or_create_user(username, first, last, email, role, dept, password, **extra):
-    if CustomUser.objects.filter(username=username).exists():
-        print(f"  ↳ Skipping {username} (exists)")
-        return CustomUser.objects.get(username=username)
-    user = CustomUser(
-        username=username, first_name=first, last_name=last,
-        email=email, role=role, department=dept, **extra
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+def get_or_create_user(username, first_name, last_name, email, role, dept, password, **extra_fields):
+    user, created = User.objects.get_or_create(
+        username=username,
+        defaults={
+            'first_name': first_name,
+            'last_name': last_name,
+            'email': email,
+            'role': role,
+            **extra_fields
+        }
     )
-    user.set_password(password)
-    user.save()
-    print(f"  ✅ Created {role}: {username}")
+
+    if created:
+        user.set_password(password)
+
+        # 🔥 IMPORTANT PART
+        if role == 'admin':
+            user.is_staff = True
+            user.is_superuser = True
+
+        user.save()
+
     return user
 
 admin   = get_or_create_user('admin',    'Admin',   'User',    'admin@campus.edu',      'admin',     'Administration', 'admin123')

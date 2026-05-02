@@ -12,4 +12,5 @@ urlpatterns = [
     path('events/', include('events.urls')),
     path('', include('events.home_urls')),
     path('dashboard/', include('events.dashboard_urls')),
+     path('chatbot/', include('chatbot.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

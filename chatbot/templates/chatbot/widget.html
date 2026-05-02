@@ -1,0 +1,599 @@
+{% load static %}
+{# ─── CampusBot Widget ─────────────────────────────────────────────────────
+   Drop this template tag into the bottom of base.html (or student.html):
+    
+   ──────────────────────────────────────────────────────────────────────── #}
+
+<style>
+  /* ── Design tokens ─────────────────────────────────────────────── */
+  :root {
+    --cb-primary:    #6366f1;
+    --cb-primary-dk: #4f46e5;
+    --cb-accent:     #f59e0b;
+    --cb-bg:         #0f172a;
+    --cb-surface:    #1e293b;
+    --cb-border:     #334155;
+    --cb-text:       #f1f5f9;
+    --cb-muted:      #94a3b8;
+    --cb-user-bg:    #6366f1;
+    --cb-bot-bg:     #1e293b;
+    --cb-radius:     18px;
+    --cb-font:       'Outfit', 'Segoe UI', sans-serif;
+    --cb-w:          380px;
+    --cb-h:          560px;
+    --cb-shadow:     0 25px 60px rgba(0,0,0,.45), 0 0 0 1px rgba(99,102,241,.2);
+  }
+
+  /* ── Floating button ───────────────────────────────────────────── */
+  #cb-trigger {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    z-index: 9999;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--cb-primary), var(--cb-primary-dk));
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(99,102,241,.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform .2s, box-shadow .2s;
+    color: #fff;
+    font-size: 1.5rem;
+  }
+  #cb-trigger:hover {
+    transform: scale(1.1);
+    box-shadow: 0 12px 32px rgba(99,102,241,.7);
+  }
+  #cb-trigger .cb-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: var(--cb-accent);
+    color: #000;
+    font-size: .6rem;
+    font-weight: 700;
+    border-radius: 99px;
+    padding: 2px 6px;
+    display: none;
+  }
+  #cb-trigger.has-new .cb-badge { display: block; }
+
+  /* ── Chat window ───────────────────────────────────────────────── */
+  #cb-window {
+    position: fixed;
+    bottom: 100px;
+    right: 28px;
+    z-index: 9998;
+    width: var(--cb-w);
+    height: var(--cb-h);
+    border-radius: var(--cb-radius);
+    background: var(--cb-bg);
+    box-shadow: var(--cb-shadow);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-family: var(--cb-font);
+    color: var(--cb-text);
+    transform-origin: bottom right;
+    transition: transform .3s cubic-bezier(.34,1.56,.64,1), opacity .25s;
+    transform: scale(0) translateY(20px);
+    opacity: 0;
+    pointer-events: none;
+  }
+  #cb-window.open {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* ── Header ────────────────────────────────────────────────────── */
+  .cb-header {
+    background: linear-gradient(135deg, var(--cb-primary-dk) 0%, #7c3aed 100%);
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .cb-header-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+    border: 2px solid rgba(255,255,255,.3);
+  }
+  .cb-header-info h4 {
+    margin: 0;
+    font-size: .95rem;
+    font-weight: 700;
+    color: #fff;
+  }
+  .cb-header-info span {
+    font-size: .73rem;
+    color: rgba(255,255,255,.7);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .cb-online-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #4ade80;
+    animation: cb-pulse 2s infinite;
+  }
+  @keyframes cb-pulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: .4; }
+  }
+  .cb-close-btn {
+    margin-left: auto;
+    background: rgba(255,255,255,.15);
+    border: none;
+    color: #fff;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .9rem;
+    transition: background .2s;
+    flex-shrink: 0;
+  }
+  .cb-close-btn:hover { background: rgba(255,255,255,.3); }
+
+  /* ── Messages area ─────────────────────────────────────────────── */
+  .cb-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--cb-border) transparent;
+  }
+  .cb-messages::-webkit-scrollbar { width: 4px; }
+  .cb-messages::-webkit-scrollbar-thumb { background: var(--cb-border); border-radius: 2px; }
+
+  /* ── Quick chips ───────────────────────────────────────────────── */
+  .cb-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0 16px 12px;
+    flex-shrink: 0;
+  }
+  .cb-chip {
+    background: var(--cb-surface);
+    border: 1px solid var(--cb-border);
+    color: var(--cb-muted);
+    font-size: .72rem;
+    padding: 5px 10px;
+    border-radius: 99px;
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+    font-family: var(--cb-font);
+  }
+  .cb-chip:hover {
+    background: var(--cb-primary);
+    border-color: var(--cb-primary);
+    color: #fff;
+  }
+
+  /* ── Individual messages ───────────────────────────────────────── */
+  .cb-msg {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    animation: cb-slide-in .25s ease;
+  }
+  @keyframes cb-slide-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .cb-msg.user { flex-direction: row-reverse; }
+
+  .cb-msg-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .8rem;
+    flex-shrink: 0;
+  }
+  .cb-msg.bot  .cb-msg-avatar { background: var(--cb-primary); }
+  .cb-msg.user .cb-msg-avatar { background: var(--cb-accent); color: #000; }
+
+  .cb-bubble {
+    max-width: 82%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: .83rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .cb-msg.bot .cb-bubble {
+    background: var(--cb-surface);
+    border: 1px solid var(--cb-border);
+    border-bottom-left-radius: 4px;
+    color: var(--cb-text);
+  }
+  .cb-msg.user .cb-bubble {
+    background: var(--cb-user-bg);
+    border-bottom-right-radius: 4px;
+    color: #fff;
+  }
+
+  .cb-bubble a {
+    color: var(--cb-accent);
+    text-decoration: underline;
+  }
+  .cb-bubble strong { color: #fff; font-weight: 600; }
+  .cb-bubble code {
+    background: rgba(255,255,255,.08);
+    padding: 1px 4px;
+    border-radius: 4px;
+    font-size: .8rem;
+  }
+
+  .cb-timestamp {
+    font-size: .6rem;
+    color: var(--cb-muted);
+    margin-top: 3px;
+    text-align: right;
+  }
+  .cb-msg.bot .cb-timestamp { text-align: left; }
+
+  /* ── Typing indicator ──────────────────────────────────────────── */
+  .cb-typing {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+  }
+  .cb-typing-dots {
+    background: var(--cb-surface);
+    border: 1px solid var(--cb-border);
+    border-radius: 14px;
+    border-bottom-left-radius: 4px;
+    padding: 12px 16px;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .cb-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--cb-muted);
+    animation: cb-bounce .9s infinite;
+  }
+  .cb-dot:nth-child(2) { animation-delay: .15s; }
+  .cb-dot:nth-child(3) { animation-delay: .3s; }
+  @keyframes cb-bounce {
+    0%,60%,100% { transform: translateY(0); }
+    30% { transform: translateY(-6px); }
+  }
+
+  /* ── Input area ────────────────────────────────────────────────── */
+  .cb-input-area {
+    border-top: 1px solid var(--cb-border);
+    padding: 12px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    background: var(--cb-surface);
+    flex-shrink: 0;
+  }
+  #cb-input {
+    flex: 1;
+    background: var(--cb-bg);
+    border: 1px solid var(--cb-border);
+    border-radius: 99px;
+    padding: 10px 16px;
+    color: var(--cb-text);
+    font-size: .83rem;
+    font-family: var(--cb-font);
+    outline: none;
+    transition: border-color .2s;
+  }
+  #cb-input::placeholder { color: var(--cb-muted); }
+  #cb-input:focus { border-color: var(--cb-primary); }
+  #cb-send {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--cb-primary), var(--cb-primary-dk));
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .9rem;
+    transition: transform .15s, box-shadow .15s;
+    flex-shrink: 0;
+  }
+  #cb-send:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(99,102,241,.5);
+  }
+  #cb-send:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+  /* ── Footer brand ─────────────────────────────────────────────── */
+  .cb-footer-brand {
+    text-align: center;
+    font-size: .6rem;
+    color: var(--cb-muted);
+    padding: 4px;
+    background: var(--cb-surface);
+  }
+
+  /* ── Mobile responsive ─────────────────────────────────────────── */
+  @media (max-width: 420px) {
+    :root { --cb-w: calc(100vw - 16px); }
+    #cb-window { right: 8px; bottom: 90px; }
+    #cb-trigger { right: 16px; bottom: 20px; }
+  }
+
+  /* ── Google Font ───────────────────────────────────────────────── */
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
+</style>
+
+{# ── Trigger button ──────────────────────────────────────────────────────── #}
+<button id="cb-trigger" title="Chat with CampusBot" aria-label="Open chatbot">
+  <span>🤖</span>
+  <span class="cb-badge">1</span>
+</button>
+
+{# ── Chat window ─────────────────────────────────────────────────────────── #}
+<div id="cb-window" role="dialog" aria-label="CampusBot chat">
+  <div class="cb-header">
+    <div class="cb-header-avatar">🤖</div>
+    <div class="cb-header-info">
+      <h4>CampusBot</h4>
+      <span><span class="cb-online-dot"></span> Always here to help</span>
+    </div>
+    <button class="cb-close-btn" id="cb-close" title="Close" aria-label="Close chat">✕</button>
+  </div>
+
+  <div class="cb-messages" id="cb-messages"></div>
+
+  {# Quick suggestion chips #}
+  <div class="cb-chips" id="cb-chips">
+    <button class="cb-chip" data-msg="Show upcoming events">📅 Upcoming</button>
+    <button class="cb-chip" data-msg="Technical events">💻 Technical</button>
+    <button class="cb-chip" data-msg="Cultural events">🎭 Cultural</button>
+    <button class="cb-chip" data-msg="Events today">🗓️ Today</button>
+    <button class="cb-chip" data-msg="Recommend events for me">🎯 Recommend</button>
+    <button class="cb-chip" data-msg="How do I register?">❓ Register</button>
+  </div>
+
+  <div class="cb-input-area">
+    <input
+      type="text"
+      id="cb-input"
+      placeholder="Ask me about events…"
+      autocomplete="off"
+      maxlength="300"
+      aria-label="Type your message"
+    />
+    <button id="cb-send" title="Send message" aria-label="Send">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"></line>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+      </svg>
+    </button>
+  </div>
+  <div class="cb-footer-brand">Powered by CampusEvents AI</div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Config ─────────────────────────────────────────────────────────────
+  const API_URL   = '/chatbot/api/chat/';
+  const BOT_NAME  = 'CampusBot';
+  const GREET_MSG = 'Hey there! 👋 I\'m **CampusBot**, your campus events assistant.\n\nTry asking me:\n• "Show upcoming events"\n• "Technical events this week"\n• "How do I register?"\n• Or just type what you\'re looking for!';
+
+  // ── State ──────────────────────────────────────────────────────────────
+  const state = {
+    open:        false,
+    busy:        false,
+    history:     [],       // [{role, text, ts}]
+    viewedIds:   [],       // event IDs seen on page
+  };
+
+  // ── DOM refs ───────────────────────────────────────────────────────────
+  const trigger   = document.getElementById('cb-trigger');
+  const win       = document.getElementById('cb-window');
+  const closeBtn  = document.getElementById('cb-close');
+  const messages  = document.getElementById('cb-messages');
+  const input     = document.getElementById('cb-input');
+  const sendBtn   = document.getElementById('cb-send');
+  const chips     = document.querySelectorAll('.cb-chip');
+
+  // ── Utilities ──────────────────────────────────────────────────────────
+  function now() {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  /** Convert **bold**, _italic_, [text](url) markdown → HTML */
+  function mdToHtml(text) {
+    return text
+      .replace(/\*\*(.+?)\*\*/g,  '<strong>$1</strong>')
+      .replace(/_(.+?)_/g,         '<em>$1</em>')
+      .replace(/`([^`]+)`/g,       '<code>$1</code>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  }
+
+  // ── Render helpers ─────────────────────────────────────────────────────
+  function appendMsg(role, text, ts) {
+    const isBot = role === 'bot';
+    const row   = document.createElement('div');
+    row.className = `cb-msg ${role}`;
+
+    const avatar = document.createElement('div');
+    avatar.className = 'cb-msg-avatar';
+    avatar.textContent = isBot ? '🤖' : '🎓';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'cb-bubble';
+    bubble.innerHTML = mdToHtml(text);
+
+    const time = document.createElement('div');
+    time.className = 'cb-timestamp';
+    time.textContent = ts || now();
+
+    const col = document.createElement('div');
+    col.style.cssText = 'display:flex;flex-direction:column;max-width:82%';
+    col.appendChild(bubble);
+    col.appendChild(time);
+
+    if (isBot) {
+      row.appendChild(avatar);
+      row.appendChild(col);
+    } else {
+      row.appendChild(col);
+      row.appendChild(avatar);
+    }
+
+    messages.appendChild(row);
+    messages.scrollTop = messages.scrollHeight;
+    state.history.push({ role, text, ts: ts || now() });
+  }
+
+  function showTyping() {
+    const row = document.createElement('div');
+    row.id = 'cb-typing-row';
+    row.className = 'cb-typing';
+    row.innerHTML = `
+      <div class="cb-msg-avatar" style="width:28px;height:28px;border-radius:50%;background:var(--cb-primary);display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0;">🤖</div>
+      <div class="cb-typing-dots">
+        <div class="cb-dot"></div>
+        <div class="cb-dot"></div>
+        <div class="cb-dot"></div>
+      </div>`;
+    messages.appendChild(row);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function hideTyping() {
+    const el = document.getElementById('cb-typing-row');
+    if (el) el.remove();
+  }
+
+  // ── Toggle chat window ─────────────────────────────────────────────────
+  function toggleChat() {
+    state.open = !state.open;
+    win.classList.toggle('open', state.open);
+    trigger.classList.remove('has-new');
+
+    if (state.open) {
+      input.focus();
+      // Greet on first open
+      if (state.history.length === 0) {
+        setTimeout(() => appendMsg('bot', GREET_MSG), 300);
+      }
+    }
+  }
+
+  trigger.addEventListener('click', toggleChat);
+  closeBtn.addEventListener('click', toggleChat);
+
+  // Close on outside click
+  document.addEventListener('click', (e) => {
+    if (state.open && !win.contains(e.target) && !trigger.contains(e.target)) {
+      toggleChat();
+    }
+  });
+
+  // ── Send message ───────────────────────────────────────────────────────
+  async function sendMessage(text) {
+    text = text.trim();
+    if (!text || state.busy) return;
+
+    state.busy = true;
+    sendBtn.disabled = true;
+    input.value = '';
+
+    appendMsg('user', text);
+    showTyping();
+
+    try {
+      const res = await fetch(API_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body:    JSON.stringify({ message: text, viewed_event_ids: state.viewedIds }),
+      });
+      const data = await res.json();
+      hideTyping();
+      appendMsg('bot', data.reply || 'Sorry, something went wrong. Please try again!');
+    } catch (err) {
+      hideTyping();
+      appendMsg('bot', '⚠️ Connection error. Please check your network and try again.');
+    } finally {
+      state.busy  = false;
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  }
+
+  function getCsrf() {
+    const meta = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (meta) return meta.value;
+    const cookie = document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='));
+    return cookie ? cookie.split('=')[1] : '';
+  }
+
+  // ── Event listeners ────────────────────────────────────────────────────
+  sendBtn.addEventListener('click', () => sendMessage(input.value));
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input.value); }
+  });
+
+  chips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      if (!state.open) toggleChat();
+      setTimeout(() => sendMessage(chip.dataset.msg), state.history.length === 0 ? 500 : 0);
+    });
+  });
+
+  // ── Track event page views for recommendations ─────────────────────────
+  // Looks for data-event-id attributes on event cards/links on the page
+  function collectViewedIds() {
+    document.querySelectorAll('[data-event-id]').forEach(el => {
+      const id = parseInt(el.dataset.eventId, 10);
+      if (id && !state.viewedIds.includes(id)) state.viewedIds.push(id);
+    });
+  }
+  collectViewedIds();
+  // Also observe future DOM changes (single-page navigation)
+  new MutationObserver(collectViewedIds).observe(document.body, { childList: true, subtree: true });
+
+  // ── Show notification badge on trigger after 3s (first visit) ─────────
+  if (!sessionStorage.getItem('cb_greeted')) {
+    setTimeout(() => {
+      if (!state.open) trigger.classList.add('has-new');
+    }, 3000);
+    sessionStorage.setItem('cb_greeted', '1');
+  }
+})();
+</script>

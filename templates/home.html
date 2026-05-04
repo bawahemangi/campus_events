@@ -10,9 +10,13 @@
   <style>
     :root {
       --primary: #6c47ff;
+      --primary-rgb: 108, 71, 255;
       --navy: #0a0e27;
+      --navy-rgb: 10, 14, 39;
       --accent: #ff6b6b;
       --teal: #06d6a0;
+      --glass-bg: rgba(255, 255, 255, 0.1);
+      --glass-border: rgba(255, 255, 255, 0.2);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'DM Sans', sans-serif; background: #f0f2f8; }
@@ -21,24 +25,30 @@
     /* ── Navbar ── */
     .navbar-home {
       position: absolute; top: 0; left: 0; right: 0; z-index: 100;
-      background: linear-gradient(to bottom, rgba(0,0,0,.65), transparent);
-      padding: 1.25rem 2rem;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.4), transparent);
+      padding: 1.5rem 3rem;
       display: flex; align-items: center; justify-content: space-between;
+      backdrop-filter: blur(5px);
     }
-    .navbar-brand-home { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.5rem; color: #fff; text-decoration: none; }
-    .navbar-brand-home span { color: var(--primary); }
-    .navbar-links { display: flex; gap: .75rem; align-items: center; }
+    .navbar-brand-home { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.7rem; color: #fff; text-decoration: none; letter-spacing: -1px; }
+    .navbar-brand-home span { 
+      background: linear-gradient(135deg, var(--primary), #a29bfe);
+      -webkit-text-fill-color: transparent;
+    }
+    .navbar-links { display: flex; gap: 1rem; align-items: center; }
     .navbar-links a {
-      color: rgba(255,255,255,.85); text-decoration: none;
-      padding: .4rem .9rem; border-radius: 8px; font-weight: 500; font-size: .9rem;
-      transition: all .2s;
+      color: rgba(255,255,255,0.9); text-decoration: none;
+      padding: 0.5rem 1rem; border-radius: 12px; font-weight: 600; font-size: 0.95rem;
+      transition: all 0.3s ease;
     }
-    .navbar-links a:hover { background: rgba(255,255,255,.15); color: #fff; }
+    .navbar-links a:hover { background: rgba(255,255,255,0.15); color: #fff; transform: translateY(-1px); }
     .btn-nav-login {
-      background: var(--primary); color: #fff !important;
-      border-radius: 10px; padding: .45rem 1.2rem !important; font-weight: 700 !important;
+      background: linear-gradient(135deg, var(--primary), #8e44ad) !important; 
+      color: #fff !important;
+      border-radius: 12px; padding: 0.6rem 1.5rem !important; font-weight: 800 !important;
+      box-shadow: 0 4px 15px rgba(108, 71, 255, 0.3);
     }
-    .btn-nav-login:hover { background: #5535e0 !important; }
+    .btn-nav-login:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(108, 71, 255, 0.4); }
 
     /* ── HERO SLIDER ── */
     .hero-slider {
@@ -57,10 +67,12 @@
       position: absolute; inset: 0;
       background-size: cover;
       background-position: center;
-      transform: scale(1.04);
-      transition: transform 8s ease;
+      transform: scale(1.1);
+      transition: transform 8s ease-out;
+      will-change: transform;
     }
-    .slide.active .slide-bg { transform: scale(1); }
+    .slide.active .slide-bg { transform: scale(1) translateY(0); }
+    .slide.prev .slide-bg { transform: scale(1.1) translateY(-20px); }
 
     /* Dark overlay — lighter for dark-text slides */
     .slide-overlay {
@@ -82,22 +94,35 @@
     /* Slide content */
     .slide-content {
       position: absolute; inset: 0;
-      display: flex; align-items: flex-end;
-      padding: 0 6% 7%;
+      display: flex; align-items: center;
+      padding: 0 10%;
       z-index: 3;
     }
-    .slide-inner { max-width: 680px; }
+    .slide-inner { 
+      max-width: 750px; 
+      background: rgba(var(--navy-rgb), 0.35);
+      padding: 3.5rem;
+      border-radius: 40px;
+      backdrop-filter: blur(20px) saturate(160%);
+      -webkit-backdrop-filter: blur(20px) saturate(160%);
+      border: 1px solid rgba(255,255,255,0.15);
+      box-shadow: 0 30px 70px rgba(0,0,0,0.4);
+    }
+    .slide-inner.dark-text {
+      background: rgba(255,255,255, 0.15);
+      border-color: rgba(0,0,0,0.05);
+    }
     .slide-tag {
       display: inline-block;
       background: var(--primary); color: #fff;
-      font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
-      padding: 5px 14px; border-radius: 20px; margin-bottom: 1rem;
+      font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px;
+      padding: 6px 18px; border-radius: 30px; margin-bottom: 1.5rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
-    .slide-tag.upcoming  { background: var(--primary); }
-    .slide-tag.past      { background: #ff6b6b; }
-    .slide-tag.annual    { background: #ffd93d; color: #333; }
-    .slide-tag.gallery   { background: #06d6a0; color: #0a0e27; }
-    .slide-tag.custom    { background: #1a237e; }
+    .slide-tag.upcoming  { background: linear-gradient(135deg, var(--primary), #8e44ad); }
+    .slide-tag.past      { background: linear-gradient(135deg, #ff6b6b, #ee5253); }
+    .slide-tag.annual    { background: linear-gradient(135deg, #ffd93d, #f1c40f); color: #333; }
+    .slide-tag.gallery   { background: linear-gradient(135deg, #06d6a0, #1dd1a1); color: #fff; }
 
     .slide-title {
       font-family: 'Syne', sans-serif;
@@ -200,42 +225,82 @@
     .section-head { font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: .8px; color: var(--primary); margin-bottom: 1rem; }
 
     /* Upcoming strip */
-    .upcoming-strip { background: var(--navy); padding: 2.5rem 0; }
-    .upcoming-strip h3 { color: #fff; font-size: 1.3rem; margin-bottom: 1.25rem; }
-    .event-chip {
-      background: rgba(255,255,255,.08); border-radius: 14px; padding: 1rem 1.25rem;
-      color: #fff; text-decoration: none; transition: all .2s;
-      border: 1px solid rgba(255,255,255,.1); display: block;
+    .upcoming-strip { 
+      background: var(--navy); padding: 4rem 0; 
+      position: relative; overflow: hidden;
     }
-    .event-chip:hover { background: rgba(108,71,255,.25); border-color: var(--primary); color: #fff; transform: translateY(-2px); }
-    .event-chip .chip-date { font-size: .75rem; color: rgba(255,255,255,.55); margin-bottom: 4px; }
-    .event-chip .chip-title { font-weight: 700; font-size: .95rem; }
-    .event-chip .chip-venue { font-size: .78rem; color: rgba(255,255,255,.5); margin-top: 2px; }
+    .upcoming-strip::before {
+      content: ''; position: absolute; top: -50%; right: -10%; width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(108, 71, 255, 0.15) 0%, transparent 70%);
+    }
+    .upcoming-strip h3 { color: #fff; font-size: 1.8rem; margin-bottom: 2rem; font-weight: 800; }
+    .event-chip {
+      background: rgba(255, 255, 255, 0.03); 
+      border-radius: 20px; padding: 1.25rem 1.5rem;
+      color: #fff; text-decoration: none; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      border: 1px solid rgba(255, 255, 255, 0.08); display: block;
+      backdrop-filter: blur(5px);
+    }
+    .event-chip:hover { 
+      background: rgba(108, 71, 255, 0.15); 
+      border-color: var(--primary); 
+      color: #fff; 
+      transform: translateY(-8px) scale(1.02);
+      box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+    }
+    .event-chip .chip-date { font-size: 0.8rem; color: var(--primary); font-weight: 800; margin-bottom: 6px; text-transform: uppercase; }
+    .event-chip .chip-title { font-weight: 800; font-size: 1.05rem; line-height: 1.3; }
+    .event-chip .chip-venue { font-size: 0.85rem; color: rgba(255, 255, 255, 0.5); margin-top: 8px; display: flex; align-items: center; gap: 4px; }
 
     /* Stat numbers */
-    .stat-row { background: #fff; padding: 2.5rem 0; border-bottom: 1px solid #e5e7eb; }
-    .stat-num { font-family: 'Syne', sans-serif; font-size: 2.8rem; font-weight: 800; color: var(--primary); line-height: 1; }
-    .stat-desc { color: #6b7280; font-size: .9rem; margin-top: 4px; }
+    .stat-row { 
+      background: #fff; padding: 5rem 0; 
+      border-bottom: 1px solid #f1f1f1;
+      position: relative;
+    }
+    .stat-num { 
+      font-family: 'Syne', sans-serif; 
+      font-size: 3.8rem; 
+      font-weight: 800; 
+      background: linear-gradient(135deg, var(--primary), #a29bfe);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      line-height: 1; 
+      display: inline-block;
+    }
+    .stat-desc { color: #6b7280; font-size: 1rem; font-weight: 600; margin-top: 10px; text-transform: uppercase; letter-spacing: 1px; }
 
     /* Past events cards */
-    .past-section { background: #f8f9ff; padding: 3rem 0; }
-    .past-card { border-radius: 14px; overflow: hidden; background: #fff; box-shadow: 0 4px 20px rgba(0,0,0,.07); transition: transform .2s; }
-    .past-card:hover { transform: translateY(-4px); }
-    .past-card img { width: 100%; height: 180px; object-fit: cover; }
+    .past-section { background: #f8faff; padding: 5rem 0; }
+    .past-card { 
+      border-radius: 24px; overflow: hidden; background: #fff; 
+      box-shadow: 0 10px 40px rgba(0,0,0,0.04); 
+      transition: all 0.4s ease;
+      border: 1px solid rgba(0,0,0,0.03);
+    }
+    .past-card:hover { transform: translateY(-12px); box-shadow: 0 20px 60px rgba(108, 71, 255, 0.1); border-color: rgba(var(--primary-rgb), 0.2); }
+    .past-card img { width: 100%; height: 220px; object-fit: cover; transition: transform 0.6s ease; }
+    .past-card:hover img { transform: scale(1.05); }
     .past-card .placeholder-img {
-      width: 100%; height: 180px;
+      width: 100%; height: 220px;
       background: linear-gradient(135deg, var(--primary), #9b59b6);
       display: flex; align-items: center; justify-content: center;
-      font-size: 3rem; color: rgba(255,255,255,.4);
+      font-size: 4rem; color: rgba(255,255,255,0.4);
     }
 
     /* CTA banner */
     .cta-banner {
-      background: linear-gradient(135deg, var(--primary), #1a237e);
-      padding: 4rem 2rem; text-align: center; color: #fff;
+      background: linear-gradient(135deg, var(--navy), #1a237e, var(--primary));
+      padding: 6rem 2rem; text-align: center; color: #fff;
+      position: relative; overflow: hidden;
     }
-    .cta-banner h2 { font-size: 2.2rem; font-weight: 800; margin-bottom: .75rem; }
-    .cta-banner p { font-size: 1.1rem; opacity: .8; margin-bottom: 1.5rem; }
+    .cta-banner::after {
+      content: ''; position: absolute; bottom: -20%; left: -10%; width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%);
+    }
+    .cta-banner h2 { font-size: 3rem; font-weight: 800; margin-bottom: 1.5rem; letter-spacing: -1px; }
+    .cta-banner p { font-size: 1.25rem; opacity: 0.9; margin-bottom: 2.5rem; max-width: 700px; margin-left: auto; margin-right: auto; }
 
     /* Footer */
     footer { background: var(--navy); color: rgba(255,255,255,.45); text-align: center; padding: 1.5rem; font-size: .85rem; }
@@ -295,7 +360,7 @@
       <div class="slide-overlay {% if slide.text_color == 'dark' %}dark-text{% else %}light-text{% endif %}"></div>
       <!-- Content -->
       <div class="slide-content">
-        <div class="slide-inner">
+        <div class="slide-inner {% if slide.text_color == 'dark' %}dark-text{% endif %}">
           <span class="slide-tag {{ slide.slide_type }}">
             {% if slide.slide_type == 'upcoming' %}🚀 Upcoming
             {% elif slide.slide_type == 'past' %}📸 Highlights
@@ -313,7 +378,7 @@
           {% endif %}
           {% if slide.cta_text %}
           <a href="{{ slide.final_cta_url }}" class="slide-cta {{ slide.slide_type }}">
-            {{ slide.cta_text }} <i class="fa fa-arrow-right"></i>
+            {{ slide.cta_text }} <i class="fa fa-arrow-right ms-2"></i>
           </a>
           {% endif %}
         </div>
@@ -333,7 +398,7 @@
     <div class="slider-dots" id="sliderDots">
       {% for slide in slides %}
       <button class="dot {% if forloop.first %}active{% endif %}"
-        onclick="goToSlide({{ forloop.counter0 }})" aria-label="Slide {{ forloop.counter }}"></button>
+        onclick="goToSlide({{ forloopcounter0 }})" aria-label="Slide {{ forloop.counter }}"></button>
       {% endfor %}
     </div>
 
@@ -341,7 +406,7 @@
     <div class="thumb-strip" id="thumbStrip">
       {% for slide in slides %}
       <div class="thumb {% if forloop.first %}active{% endif %}"
-        onclick="goToSlide({{ forloop.counter0 }})"
+        onclick="goToSlide({{ forloopcounter0 }})"
         title="{{ slide.title }}">
         {% if slide.image %}
           <img src="{{ slide.image.url }}" alt="{{ slide.title }}" loading="lazy">

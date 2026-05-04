@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %}Broadcast Email — {{ event.title }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb mb-2">
+      <li class="breadcrumb-item"><a href="{% url 'organizer_dashboard' %}">Dashboard</a></li>
+      <li class="breadcrumb-item active">Broadcast Email</li>
+    </ol></nav>
+    <h1><i class="fa fa-envelope me-2"></i>Email Registrants</h1>
+    <p class="mb-0 opacity-75">{{ event.title }}</p>
+  </div>
+</div>
+
+<div class="container pb-5" style="max-width:720px">
+  <div class="card">
+    <div class="card-body p-4">
+      <div class="alert alert-info mb-4">
+        <i class="fa fa-info-circle me-2"></i>
+        This will send an email to <strong>{{ recipient_count }} registrant{{ recipient_count|pluralize }}</strong>.
+        Limited to <strong>1 broadcast per event per 24 hours</strong>.
+      </div>
+
+      {% if event.last_bulk_email_at %}
+      <div class="alert alert-warning mb-4">
+        <i class="fa fa-clock me-2"></i>
+        Last broadcast sent: <strong>{{ event.last_bulk_email_at|date:"M d, Y g:i A" }}</strong>
+      </div>
+      {% endif %}
+
+      <form method="POST">
+        {% csrf_token %}
+        <div class="mb-4">
+          <label class="form-label fw-bold">Subject</label>
+          <input type="text" name="subject" class="form-control form-control-lg"
+                 placeholder="e.g. Important update about the event" required maxlength="200">
+          <small class="text-muted">This will appear as: [{{ event.title }}] Your subject</small>
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-bold">Message</label>
+          <textarea name="body" class="form-control" rows="8"
+                    placeholder="Write your announcement here. Students will receive this as a styled HTML email with event details included automatically."
+                    required id="bodyField"></textarea>
+          <div class="d-flex justify-content-between mt-1">
+            <small class="text-muted">Plain text — the email wrapper and event details are added automatically.</small>
+            <small class="text-muted" id="charCount">0 characters</small>
+          </div>
+        </div>
+
+        <div class="card mb-4" style="background:#f8f9ff;border:none">
+          <div class="card-body">
+            <h6 class="fw-bold mb-2 text-muted">Preview — what students receive</h6>
+            <div class="d-flex gap-2 align-items-center mb-2">
+              <i class="fa fa-envelope text-primary"></i>
+              <span class="fw-semibold" id="subjectPreview" style="font-size:.9rem">[{{ event.title }}] Your subject here</span>
+            </div>
+            <ul class="list-unstyled mb-0" style="font-size:.85rem;color:#6b7280">
+              <li><i class="fa fa-check text-success me-2"></i>Your message body</li>
+              <li><i class="fa fa-check text-success me-2"></i>Event details (date, time, venue)</li>
+              <li><i class="fa fa-check text-success me-2"></i>Link to event page</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="d-flex gap-3">
+          <button type="submit" class="btn btn-primary px-4" onclick="return confirm('Send to {{ recipient_count }} registrant(s)?')">
+            <i class="fa fa-paper-plane me-2"></i>Send Broadcast
+          </button>
+          <a href="{% url 'organizer_dashboard' %}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const bodyField = document.getElementById('bodyField');
+const charCount = document.getElementById('charCount');
+const subjectInput = document.querySelector('input[name="subject"]');
+const subjectPreview = document.getElementById('subjectPreview');
+
+bodyField.addEventListener('input', () => {
+  charCount.textContent = bodyField.value.length + ' characters';
+});
+subjectInput.addEventListener('input', () => {
+  subjectPreview.textContent = `[{{ event.title }}] ${subjectInput.value || 'Your subject here'}`;
+});
+</script>
+{% endblock %}

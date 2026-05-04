@@ -13,8 +13,10 @@
   <div class="card mb-4">
     <div class="card-body p-3">
       <form method="GET" class="row g-2 align-items-end">
-        <div class="col-md-4">
+        <div class="col-md-4 position-relative">
           {{ form.search }}
+          <!-- F5: Live Search Dropdown -->
+          <div id="liveSearchResults" class="dropdown-menu w-100 shadow-sm" style="display:none; max-height:300px; overflow-y:auto; position:absolute; top:100%; z-index:1000"></div>
         </div>
         <div class="col-md-2">
           {{ form.category }}
@@ -161,5 +163,51 @@ document.querySelectorAll('[id^="seats-"]').forEach(el => {
       });
   }, 15000);
 });
+
+// F5: Live AJAX Search
+const searchInput = document.getElementById('eventSearchInput');
+const resultsBox = document.getElementById('liveSearchResults');
+let searchTimeout;
+
+if (searchInput) {
+  searchInput.addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    const q = e.target.value.trim();
+
+    if (q.length < 2) {
+      resultsBox.style.display = 'none';
+      return;
+    }
+
+    searchTimeout = setTimeout(() => {
+      fetch(`/events/search/api/?q=${encodeURIComponent(q)}`)
+        .then(r => r.json())
+        .then(data => {
+          resultsBox.innerHTML = '';
+          if (data.results.length > 0) {
+            data.results.forEach(ev => {
+              resultsBox.innerHTML += `
+                <a href="${ev.url}" class="dropdown-item py-2 border-bottom">
+                  <div class="fw-bold">${ev.title}</div>
+                  <div class="small text-muted"><i class="fa fa-calendar me-1"></i>${ev.date} &nbsp; <i class="fa fa-location-dot me-1"></i>${ev.venue}</div>
+                </a>
+              `;
+            });
+            resultsBox.style.display = 'block';
+          } else {
+            resultsBox.innerHTML = '<div class="p-3 text-muted text-center small">No matching events found.</div>';
+            resultsBox.style.display = 'block';
+          }
+        });
+    }, 300); // 300ms debounce
+  });
+
+  // Hide when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!searchInput.contains(e.target) && !resultsBox.contains(e.target)) {
+      resultsBox.style.display = 'none';
+    }
+  });
+}
 </script>
 {% endblock %}

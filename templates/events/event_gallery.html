@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% block title %}{{ event.title }} Gallery — CampusEvents{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb mb-2">
+      <li class="breadcrumb-item"><a href="{% url 'event_list' %}">Events</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'event_detail' event.pk %}">{{ event.title|truncatechars:25 }}</a></li>
+      <li class="breadcrumb-item active">Gallery</li>
+    </ol></nav>
+    <h1><i class="fa fa-images me-2"></i>{{ event.title }} — Gallery</h1>
+    <p class="mb-0 opacity-75">{{ photos|length }} photo{{ photos|length|pluralize }}</p>
+  </div>
+</div>
+
+<div class="container pb-5">
+  {% if can_upload %}
+  <div class="card mb-4" style="border:2px dashed var(--primary);background:#6c47ff08">
+    <div class="card-body">
+      <h6 class="fw-bold mb-3"><i class="fa fa-upload me-2 text-primary"></i>Upload Photo</h6>
+      <form method="POST" action="{% url 'upload_gallery_photo' event.pk %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="row g-2 align-items-end">
+          <div class="col-md-5">
+            <label class="form-label fw-semibold">Photo</label>
+            <input type="file" name="image" class="form-control" accept="image/*" required>
+          </div>
+          <div class="col-md-5">
+            <label class="form-label fw-semibold">Caption (optional)</label>
+            <input type="text" name="caption" class="form-control" placeholder="e.g. Opening ceremony...">
+          </div>
+          <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100">Upload</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if photos %}
+  <div class="row g-3" id="galleryGrid">
+    {% for photo in photos %}
+    <div class="col-6 col-md-4 col-lg-3">
+      <div class="card h-100 overflow-hidden" style="cursor:pointer" onclick="openLightbox('{{ photo.image.url }}','{{ photo.caption }}')">
+        <img src="{{ photo.image.url }}" class="w-100" style="height:180px;object-fit:cover;transition:transform .3s"
+             onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+        {% if photo.caption %}
+        <div class="card-body p-2">
+          <small class="text-muted">{{ photo.caption }}</small>
+        </div>
+        {% endif %}
+        {% if can_upload %}
+        <div class="card-footer p-1 text-end" style="background:transparent">
+          <button class="btn btn-outline-danger btn-sm" style="font-size:.7rem"
+                  onclick="event.stopPropagation();deletePhoto({{ photo.pk }},this)">
+            <i class="fa fa-trash"></i>
+          </button>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-center py-5">
+    <div style="font-size:4rem;opacity:.3">📷</div>
+    <h4 class="text-muted mt-3">No photos yet</h4>
+    {% if can_upload %}<p class="text-muted">Upload the first photo above!</p>{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- Lightbox -->
+<div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;align-items:center;justify-content:center;flex-direction:column"
+     onclick="this.style.display='none'">
+  <img id="lightboxImg" src="" style="max-width:90vw;max-height:80vh;border-radius:12px;object-fit:contain;box-shadow:0 8px 40px rgba(0,0,0,.5)">
+  <p id="lightboxCaption" class="text-white mt-3 opacity-75" style="font-size:1rem"></p>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openLightbox(url, caption) {
+  const lb = document.getElementById('lightbox');
+  document.getElementById('lightboxImg').src = url;
+  document.getElementById('lightboxCaption').textContent = caption || '';
+  lb.style.display = 'flex';
+}
+
+function deletePhoto(photoId, btn) {
+  if (!confirm('Delete this photo?')) return;
+  fetch(`/events/gallery/delete/${photoId}/`, {
+    method: 'POST',
+    headers: {'X-CSRFToken': getCookie('csrftoken')}
+  }).then(r => r.json()).then(data => {
+    if (data.success) btn.closest('.col-6, .col-md-4').remove();
+  });
+}
+
+function getCookie(name) {
+  const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+  return v ? v[2] : null;
+}
+</script>
+{% endblock %}

@@ -2,7 +2,8 @@ from django.urls import path
 from events.dashboard_views import (
     dashboard, student_dashboard, organizer_dashboard,
     admin_dashboard, approve_event, reject_event,
-    admin_event_detail, analytics, admin_attendance
+    admin_event_detail, analytics, admin_attendance,
+    organizer_analytics, send_bulk_email,
 )
 
 urlpatterns = [
@@ -15,4 +16,8 @@ urlpatterns = [
     path('admin/reject/<int:pk>/', reject_event, name='reject_event'),
     path('admin/analytics/', analytics, name='analytics'),
     path('admin/attendance/<int:pk>/', admin_attendance, name='admin_attendance'),
+    # F7: Organizer Analytics
+    path('organizer/analytics/', organizer_analytics, name='organizer_analytics'),
+    # F10: Bulk Email
+    path('organizer/events/<int:pk>/broadcast/', send_bulk_email, name='send_bulk_email'),
 ]

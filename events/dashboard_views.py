@@ -8,7 +8,7 @@ from django.db.models import Count, Q, Avg
 from django.utils import timezone
 from django.http import JsonResponse
 from events.models import Event, Registration, Feedback, Notification, Payment
-from events.utils import get_event_recommendations, create_notification, send_event_approved_email, send_event_rejected_email
+from events.utils import get_event_recommendations, create_notification, send_event_approved_email, send_event_rejected_email, send_bulk_announcement
 from users.models import CustomUser
 
 
@@ -299,3 +299,105 @@ def admin_attendance(request, pk):
         'is_admin_view':  True,
     }
     return render(request, 'events/scan_qr.html', context)
+
+
+# ── F7: Organizer Analytics ───────────────────────────────────────────────────
+
+@login_required
+def organizer_analytics(request):
+    """Rich analytics page for the logged-in organizer."""
+    if not request.user.is_organizer:
+        return redirect('dashboard')
+
+    from django.db.models.functions import TruncMonth
+
+    events = Event.objects.filter(organizer=request.user)
+
+    # Registration trend per month (all time)
+    monthly_data = (
+        Registration.objects.filter(event__organizer=request.user)
+        .annotate(month=TruncMonth('registered_at'))
+        .values('month')
+        .annotate(count=Count('id'))
+        .order_by('month')
+    )
+
+    # Category breakdown
+    category_data = (
+        events.values('category')
+        .annotate(count=Count('id'))
+        .order_by('-count')
+    )
+
+    # Per-event stats (top 10 by registrations)
+    event_stats = events.filter(status='approved').annotate(
+        reg_count=Count('registrations'),
+        attended=Count('registrations', filter=Q(registrations__attended=True)),
+        avg_rating=Avg('feedbacks__rating'),
+    ).order_by('-reg_count')[:10]
+
+    # Overall totals
+    total_registrations = Registration.objects.filter(event__organizer=request.user).count()
+    total_attended = Registration.objects.filter(event__organizer=request.user, attended=True).count()
+    total_events = events.count()
+    approved_events = events.filter(status='approved').count()
+
+    context = {
+        'monthly_data': list(monthly_data),
+        'category_data': list(category_data),
+        'event_stats': event_stats,
+        'total_registrations': total_registrations,
+        'total_attended': total_attended,
+        'total_events': total_events,
+        'approved_events': approved_events,
+    }
+    return render(request, 'dashboard/organizer_analytics.html', context)
+
+
+# ── F10: Bulk Email to Registrants ────────────────────────────────────────────
+
+@login_required
+def send_bulk_email(request, pk):
+    """Organizer sends a bulk announcement to all event registrants."""
+    if not request.user.is_organizer:
+        return redirect('dashboard')
+
+    event = get_object_or_404(Event, pk=pk, organizer=request.user)
+    recipient_count = event.registrations.count()
+
+    if request.method == 'POST':
+        subject = request.POST.get('subject', '').strip()
+        body    = request.POST.get('body', '').strip()
+
+        if not subject or not body:
+            messages.error(request, 'Please provide both a subject and message body.')
+            return render(request, 'dashboard/bulk_email.html', {
+                'event': event, 'recipient_count': recipient_count
+            })
+
+        # Throttle: max 1 bulk email per event per 24 hours
+        if event.last_bulk_email_at:
+            from datetime import timedelta
+            elapsed = timezone.now() - event.last_bulk_email_at
+            if elapsed < timedelta(hours=24):
+                remaining = 24 - int(elapsed.total_seconds() / 3600)
+                messages.warning(request,
+                    f'You can only send one bulk email per 24 hours. '
+                    f'Please wait ~{remaining} more hour(s).')
+                return render(request, 'dashboard/bulk_email.html', {
+                    'event': event, 'recipient_count': recipient_count
+                })
+
+        sender_name = request.user.get_full_name() or request.user.username
+        sent = send_bulk_announcement(event, subject, body, sender_name)
+
+        event.last_bulk_email_at = timezone.now()
+        event.save(update_fields=['last_bulk_email_at'])
+
+        messages.success(request, f'Announcement sent to {sent} registrant(s) successfully!')
+        return redirect('organizer_dashboard')
+
+    return render(request, 'dashboard/bulk_email.html', {
+        'event': event,
+        'recipient_count': recipient_count,
+    })

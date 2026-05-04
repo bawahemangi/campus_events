@@ -41,6 +41,10 @@ def student_dashboard(request):
     # Recommendations
     recommendations = get_event_recommendations(request.user, limit=4)
     
+    # F3: Wishlist
+    from events.models import Wishlist
+    wishlist_events = [w.event for w in Wishlist.objects.filter(user=request.user).select_related('event')]
+
     # Unread notifications
     notifications = request.user.notifications.filter(is_read=False)[:5]
     
@@ -57,6 +61,7 @@ def student_dashboard(request):
         'attended_count': attended_count,
         'total_registered': registrations.count(),
         'recommendations': recommendations,
+        'wishlist_events': wishlist_events,
         'notifications': notifications,
         'points': request.user.participation_points,
         'rank': rank,

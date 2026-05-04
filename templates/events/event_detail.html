@@ -7,15 +7,38 @@
       <li class="breadcrumb-item"><a href="{% url 'event_list' %}">Events</a></li>
       <li class="breadcrumb-item active">{{ event.title|truncatechars:30 }}</li>
     </ol></nav>
-    <h1>{{ event.title }}</h1>
-    <div class="d-flex align-items-center gap-3 flex-wrap">
-      <span class="category-badge cat-{{ event.category }} fs-6">{{ event.get_category_display }}</span>
-      <span class="badge {% if event.status == 'approved' %}bg-success{% elif event.status == 'pending' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
-        {{ event.get_status_display }}
-      </span>
-      {% if event.average_rating > 0 %}
-      <span class="text-warning"><i class="fa fa-star"></i> {{ event.average_rating }}/5 ({{ event.feedbacks.count }} reviews)</span>
-      {% endif %}
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <h1 class="mb-1">{{ event.title }}</h1>
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+          <span class="category-badge cat-{{ event.category }}">{{ event.get_category_display }}</span>
+          {% if event.team_event %}<span class="badge bg-info text-dark"><i class="fa fa-users me-1"></i>Team Event</span>{% endif %}
+          {% if event.is_paid %}<span class="badge bg-warning text-dark"><i class="fa fa-tag me-1"></i>Paid — ₹{{ event.registration_fee }}</span>{% endif %}
+          {% if event.average_rating > 0 %}
+          <span class="text-warning"><i class="fa fa-star"></i> {{ event.average_rating }}/5 ({{ event.feedbacks.count }} reviews)</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="d-flex gap-2 flex-wrap">
+        <!-- F2: Add to Calendar -->
+        <a href="{% url 'export_ics' event.pk %}" class="btn btn-sm btn-outline-light" title="Add to Calendar">
+          <i class="fa fa-calendar-plus me-1"></i>Add to Calendar
+        </a>
+        <!-- F3: Wishlist -->
+        {% if user.is_authenticated and user.is_student %}
+        <button id="wishlistBtn" class="btn btn-sm {% if is_wishlisted %}btn-danger{% else %}btn-outline-light{% endif %}"
+                data-event="{{ event.pk }}" title="Bookmark this event">
+          <i class="fa {% if is_wishlisted %}fa-heart{% else %}fa-heart{% endif %} me-1"></i>
+          <span id="wishlistLabel">{% if is_wishlisted %}Saved{% else %}Save{% endif %}</span>
+        </button>
+        {% endif %}
+        <!-- F8: Gallery -->
+        {% if photos %}
+        <a href="{% url 'event_gallery' event.pk %}" class="btn btn-sm btn-outline-light">
+          <i class="fa fa-images me-1"></i>Gallery ({{ photos|length }}+)
+        </a>
+        {% endif %}
+      </div>
     </div>
   </div>
 </div>
@@ -32,6 +55,75 @@
         <div class="card-body">
           <h5 class="fw-bold mb-3">About this Event</h5>
           <p style="line-height:1.8">{{ event.description }}</p>
+        </div>
+      </div>
+
+      <!-- F8: Gallery preview -->
+      {% if photos %}
+      <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="fa fa-images me-2 text-primary"></i>Event Gallery</span>
+          <a href="{% url 'event_gallery' event.pk %}" class="btn btn-sm btn-outline-primary">View All</a>
+        </div>
+        <div class="card-body">
+          <div class="row g-2">
+            {% for photo in photos|slice:":6" %}
+            <div class="col-4">
+              <img src="{{ photo.image.url }}" class="w-100 rounded-2" style="height:100px;object-fit:cover;cursor:pointer"
+                   onclick="openLightbox('{{ photo.image.url }}')" alt="{{ photo.caption }}">
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- F9: Q&A Section -->
+      <div class="card mb-4">
+        <div class="card-header"><i class="fa fa-question-circle me-2 text-primary"></i>Q&A / Ask a Question</div>
+        <div class="card-body">
+          {% if user.is_authenticated %}
+          <form method="POST" action="{% url 'ask_question' event.pk %}" class="mb-4">
+            {% csrf_token %}
+            <div class="input-group">
+              <input type="text" name="question" class="form-control" placeholder="Ask something about this event..." required>
+              <button type="submit" class="btn btn-primary"><i class="fa fa-paper-plane me-1"></i>Ask</button>
+            </div>
+          </form>
+          {% else %}
+          <p class="text-muted"><a href="{% url 'login' %}">Login</a> to ask a question.</p>
+          {% endif %}
+
+          {% if questions %}
+            {% for q in questions %}
+            <div class="mb-3 p-3 rounded-3" style="background:#f8f9ff;border-left:4px solid {% if q.answer %}var(--success){% else %}var(--primary){% endif %}">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="fw-semibold mb-1">
+                    <i class="fa fa-question-circle text-primary me-1"></i>{{ q.question }}
+                  </div>
+                  <small class="text-muted">Asked by {{ q.asker.get_full_name|default:q.asker.username }} · {{ q.created_at|date:"M d, Y" }}</small>
+                </div>
+              </div>
+              {% if q.answer %}
+              <div class="mt-2 p-2 rounded-2" style="background:#e8faf5">
+                <i class="fa fa-check-circle text-success me-1"></i><strong>Answer:</strong> {{ q.answer }}
+                <div><small class="text-muted">— {{ q.answered_by.get_full_name|default:q.answered_by.username }}</small></div>
+              </div>
+              {% elif user.is_authenticated and user == event.organizer or user.is_authenticated and user.is_admin_user %}
+              <form method="POST" action="{% url 'answer_question' event.pk q.pk %}" class="mt-2">
+                {% csrf_token %}
+                <div class="input-group input-group-sm">
+                  <input type="text" name="answer" class="form-control" placeholder="Write your answer..." required>
+                  <button type="submit" class="btn btn-success btn-sm">Answer</button>
+                </div>
+              </form>
+              {% endif %}
+            </div>
+            {% endfor %}
+          {% else %}
+            <p class="text-muted mb-0">No questions yet. Be the first to ask!</p>
+          {% endif %}
         </div>
       </div>
 
@@ -64,7 +156,7 @@
         </div>
         {% else %}
         <div class="alert alert-success">
-          <i class="fa fa-check me-2"></i>You rated this event <strong>{{ user_feedback.rating }}/5</strong> stars. Thanks for your feedback!
+          <i class="fa fa-check me-2"></i>You rated this event <strong>{{ user_feedback.rating }}/5</strong> stars. Thanks!
         </div>
         {% endif %}
       {% endif %}
@@ -72,9 +164,7 @@
       <!-- Reviews -->
       {% if feedbacks %}
       <div class="card">
-        <div class="card-header">
-          <i class="fa fa-comments me-2 text-primary"></i>Student Reviews
-        </div>
+        <div class="card-header"><i class="fa fa-comments me-2 text-primary"></i>Student Reviews</div>
         <div class="card-body">
           {% for fb in feedbacks %}
           <div class="d-flex gap-3 mb-3 pb-3 {% if not forloop.last %}border-bottom{% endif %}">
@@ -108,8 +198,8 @@
               <div><div class="fw-semibold">{{ event.date|date:"l, M d, Y" }}</div><div class="text-muted small">Date</div></div>
             </div>
             <div class="d-flex align-items-center gap-3">
-              <div style="width:36px;height:36px;background:#06d6a015;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#06d6a0">
-                <i class="fa fa-clock"></i>
+              <div style="width:36px;height:36px;background:#06d6a015;border-radius:8px;display:flex;align-items:center;justify-content:color:#06d6a0">
+                <i class="fa fa-clock" style="color:#06d6a0;margin:auto"></i>
               </div>
               <div><div class="fw-semibold">{{ event.start_time|time:"g:i A" }} – {{ event.end_time|time:"g:i A" }}</div><div class="text-muted small">Time</div></div>
             </div>
@@ -130,6 +220,14 @@
                 <div class="text-muted small">{{ event.registered_count }}/{{ event.max_capacity }} registered</div>
               </div>
             </div>
+            {% if event.team_event %}
+            <div class="d-flex align-items-center gap-3">
+              <div style="width:36px;height:36px;background:#6c47ff15;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--primary)">
+                <i class="fa fa-users-between-lines"></i>
+              </div>
+              <div><div class="fw-semibold">{{ event.min_team_size }}–{{ event.max_team_size }} members</div><div class="text-muted small">Team size</div></div>
+            </div>
+            {% endif %}
             <div class="d-flex align-items-center gap-3">
               <div style="width:36px;height:36px;background:#6c47ff15;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--primary)">
                 <i class="fa fa-user-tie"></i>
@@ -137,8 +235,6 @@
               <div><div class="fw-semibold">{{ event.organizer.get_full_name|default:event.organizer.username }}</div><div class="text-muted small">{{ event.organizer.department }}</div></div>
             </div>
           </div>
-
-          <!-- Capacity bar -->
           <div class="mt-3">
             <div class="progress" style="height:8px;border-radius:4px">
               <div class="progress-bar {% if event.is_full %}bg-danger{% elif event.seats_left <= 10 %}bg-warning{% else %}bg-success{% endif %}"
@@ -160,11 +256,9 @@
           {% elif user.role == 'student' %}
             {% if user_registration %}
               <div class="alert alert-success mb-3 text-start">
-                <i class="fa fa-check-circle me-2"></i>
-                <strong>You're registered!</strong>
-                {% if user_registration.attended %}
-                  <br><i class="fa fa-star text-warning me-1"></i>Attendance marked
-                {% endif %}
+                <i class="fa fa-check-circle me-2"></i><strong>You're registered!</strong>
+                {% if user_registration.attended %}<br><i class="fa fa-star text-warning me-1"></i>Attendance marked{% endif %}
+                {% if user_team %}<br><i class="fa fa-users me-1 text-info"></i>Team: <strong>{{ user_team.name }}</strong> ({{ user_team.member_count }} members){% endif %}
               </div>
               {% if user_registration.qr_code %}
               <div class="text-center mb-3">
@@ -187,18 +281,59 @@
               <p class="text-muted">Registration is closed for past events.</p>
             {% elif event.is_full %}
               <button class="btn btn-secondary w-100 disabled">Event is Full</button>
+            {% elif event.team_event %}
+              <!-- F11: Team Registration -->
+              <div class="mb-3">
+                <div class="alert alert-info text-start small mb-3">
+                  <i class="fa fa-info-circle me-1"></i>This is a <strong>team event</strong>. Create a team or join with a code.
+                </div>
+                <button class="btn btn-primary w-100 mb-2" data-bs-toggle="collapse" data-bs-target="#createTeamForm">
+                  <i class="fa fa-plus-circle me-2"></i>Create a Team
+                </button>
+                <div class="collapse mb-2" id="createTeamForm">
+                  <form method="POST" action="{% url 'create_team' event.pk %}">
+                    {% csrf_token %}
+                    <input type="text" name="team_name" class="form-control mb-2" placeholder="Team name..." required>
+                    <button type="submit" class="btn btn-success w-100 btn-sm">Create & Register</button>
+                  </form>
+                </div>
+                <button class="btn btn-outline-primary w-100" data-bs-toggle="collapse" data-bs-target="#joinTeamForm">
+                  <i class="fa fa-users me-2"></i>Join a Team
+                </button>
+                <div class="collapse mt-2" id="joinTeamForm">
+                  <form method="POST" action="{% url 'join_team' event.pk %}">
+                    {% csrf_token %}
+                    <input type="text" name="team_code" class="form-control mb-2" placeholder="Team code (e.g. A3F8B2C1)..." required>
+                    <button type="submit" class="btn btn-info w-100 btn-sm text-white">Join Team</button>
+                  </form>
+                </div>
+              </div>
             {% else %}
+              {% if event.is_paid %}
+              <a href="{% url 'initiate_payment' event.pk %}" class="btn btn-primary btn-lg w-100">
+                <i class="fa fa-credit-card me-2"></i>Pay & Register — ₹{{ event.registration_fee }}
+              </a>
+              {% else %}
               <a href="{% url 'register_for_event' event.pk %}" class="btn btn-primary btn-lg w-100">
                 <i class="fa fa-plus-circle me-2"></i>Register Now
               </a>
-              <p class="text-muted small mt-2">Free • Instant confirmation</p>
+              <p class="text-muted small mt-2">Free · Instant confirmation</p>
+              {% endif %}
             {% endif %}
           {% elif user.role == 'organizer' and user == event.organizer %}
             <a href="{% url 'scan_qr' event.pk %}" class="btn btn-primary w-100 mb-2">
               <i class="fa fa-qrcode me-2"></i>Manage Attendance
             </a>
-            <a href="{% url 'edit_event' event.pk %}" class="btn btn-outline-secondary w-100">
+            <a href="{% url 'edit_event' event.pk %}" class="btn btn-outline-secondary w-100 mb-2">
               <i class="fa fa-edit me-2"></i>Edit Event
+            </a>
+            <!-- F8: Gallery upload link -->
+            <a href="{% url 'event_gallery' event.pk %}" class="btn btn-outline-info w-100 mb-2">
+              <i class="fa fa-images me-2"></i>Manage Gallery
+            </a>
+            <!-- F10: Bulk email -->
+            <a href="{% url 'send_bulk_email' event.pk %}" class="btn btn-outline-warning w-100">
+              <i class="fa fa-envelope me-2"></i>Email Registrants
             </a>
           {% elif user.role == 'admin' %}
             <a href="{% url 'admin_event_detail' event.pk %}" class="btn btn-outline-primary w-100">
@@ -225,6 +360,12 @@
       {% endif %}
     </div>
   </div>
+</div>
+
+<!-- Lightbox (F8) -->
+<div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;cursor:pointer;align-items:center;justify-content:center"
+     onclick="this.style.display='none'">
+  <img id="lightboxImg" src="" style="max-width:90vw;max-height:90vh;border-radius:8px;object-fit:contain">
 </div>
 
 <!-- Reject Modal -->
@@ -261,5 +402,40 @@ setInterval(() => {
       if (el) el.textContent = data.is_full ? 'Full' : `${data.seats_left} seats left`;
     });
 }, 10000);
+
+// F3: Wishlist toggle
+const wishBtn = document.getElementById('wishlistBtn');
+if (wishBtn) {
+  wishBtn.addEventListener('click', () => {
+    const pk = wishBtn.dataset.event;
+    fetch(`/events/${pk}/wishlist/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCookie('csrftoken')}
+    }).then(r => r.json()).then(data => {
+      const label = document.getElementById('wishlistLabel');
+      if (data.wishlisted) {
+        wishBtn.classList.remove('btn-outline-light');
+        wishBtn.classList.add('btn-danger');
+        label.textContent = 'Saved';
+      } else {
+        wishBtn.classList.remove('btn-danger');
+        wishBtn.classList.add('btn-outline-light');
+        label.textContent = 'Save';
+      }
+    });
+  });
+}
+
+// F8: Lightbox
+function openLightbox(url) {
+  const lb = document.getElementById('lightbox');
+  document.getElementById('lightboxImg').src = url;
+  lb.style.display = 'flex';
+}
+
+function getCookie(name) {
+  const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+  return v ? v[2] : null;
+}
 </script>
 {% endblock %}

@@ -468,3 +468,117 @@ def get_event_recommendations(student, limit=5):
         qs = qs.filter(category__in=registered_categories)
 
     return qs.order_by('date')[:limit]
+
+
+# ─────────────────────────────────────────────────────────────────────
+#  F4: PAYMENT RECEIPT PDF
+# ─────────────────────────────────────────────────────────────────────
+
+def generate_payment_receipt(payment):
+    """Generate a styled PDF payment receipt for a paid event."""
+    try:
+        from reportlab.pdfgen import canvas as rl_canvas
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.units import cm
+
+        buffer = BytesIO()
+        page_w, page_h = A4
+        c = rl_canvas.Canvas(buffer, pagesize=A4)
+
+        # Background
+        c.setFillColorRGB(0.97, 0.97, 1.0)
+        c.rect(0, 0, page_w, page_h, fill=1, stroke=0)
+
+        # Header bar
+        c.setFillColorRGB(0.42, 0.28, 1.0)
+        c.rect(0, page_h - 100, page_w, 100, fill=1, stroke=0)
+        c.setFillColorRGB(1, 1, 1)
+        c.setFont('Helvetica-Bold', 22)
+        c.drawCentredString(page_w / 2, page_h - 45, 'PAYMENT RECEIPT')
+        c.setFont('Helvetica', 12)
+        c.drawCentredString(page_w / 2, page_h - 68, 'CampusEvents Platform')
+
+        # Receipt box
+        c.setStrokeColorRGB(0.42, 0.28, 1.0)
+        c.setLineWidth(1.5)
+        c.setFillColorRGB(1, 1, 1)
+        c.roundRect(2*cm, page_h - 420, page_w - 4*cm, 290, 10, fill=1, stroke=1)
+
+        y = page_h - 160
+        c.setFillColorRGB(0.1, 0.1, 0.15)
+
+        def row(label, value, y_pos):
+            c.setFont('Helvetica-Bold', 11)
+            c.setFillColorRGB(0.4, 0.4, 0.5)
+            c.drawString(2.5*cm, y_pos, label)
+            c.setFont('Helvetica', 11)
+            c.setFillColorRGB(0.1, 0.1, 0.15)
+            c.drawString(8*cm, y_pos, str(value))
+
+        row('Receipt For:', payment.student.get_full_name() or payment.student.username, y); y -= 28
+        row('Event:', payment.event.title, y); y -= 28
+        row('Event Date:', payment.event.date.strftime('%B %d, %Y'), y); y -= 28
+        row('Venue:', payment.event.venue, y); y -= 28
+        row('Payment ID:', payment.razorpay_payment_id or 'N/A', y); y -= 28
+        row('Order ID:', payment.razorpay_order_id or 'N/A', y); y -= 28
+        row('Date Paid:', payment.created_at.strftime('%B %d, %Y %I:%M %p'), y); y -= 28
+        row('Status:', payment.get_status_display(), y); y -= 28
+
+        # Amount highlight
+        c.setFillColorRGB(0.42, 0.28, 1.0)
+        c.roundRect(2*cm, page_h - 440, page_w - 4*cm, 36, 8, fill=1, stroke=0)
+        c.setFillColorRGB(1, 1, 1)
+        c.setFont('Helvetica-Bold', 14)
+        c.drawCentredString(page_w / 2, page_h - 420, f'TOTAL AMOUNT PAID: Rs. {payment.amount}')
+
+        # Footer
+        c.setFillColorRGB(0.6, 0.6, 0.7)
+        c.setFont('Helvetica', 9)
+        c.drawCentredString(page_w / 2, 2*cm, 'This is a computer-generated receipt. No signature required.')
+        c.drawCentredString(page_w / 2, 1.4*cm, f'Generated on {timezone.now().strftime("%B %d, %Y")} | CampusEvents')
+
+        c.save()
+        buffer.seek(0)
+        return buffer.read()
+    except Exception as e:
+        print(f'[Receipt Error] {e}')
+        return None
+
+
+# ─────────────────────────────────────────────────────────────────────
+#  F10: BULK EMAIL TO REGISTRANTS
+# ─────────────────────────────────────────────────────────────────────
+
+def send_bulk_announcement(event, subject, body_text, sender_name):
+    """Send a custom announcement to all registered students for an event."""
+    from events.models import Registration
+
+    registrations = Registration.objects.filter(
+        event=event
+    ).select_related('student')
+
+    body_html = f"""
+    <div class="success-icon">&#128226;</div>
+    <h2>Announcement: {event.title}</h2>
+    <p>Hi, a message from <strong>{sender_name}</strong> regarding <strong>{event.title}</strong>:</p>
+    <div class="info-box" style="white-space:pre-wrap">{body_text}</div>
+    <div class="info-box">
+      <div><span class="info-label">&#128197; Date</span> {event.date.strftime('%A, %B %d, %Y')}</div>
+      <div><span class="info-label">&#8987; Time</span> {event.start_time.strftime('%I:%M %p')} &ndash; {event.end_time.strftime('%I:%M %p')}</div>
+      <div><span class="info-label">&#128205; Venue</span> {event.venue}</div>
+    </div>
+    <a href="{settings.SITE_URL}/events/{event.pk}/" class="btn">View Event &rarr;</a>
+    """
+
+    html = _html_wrap(f'Announcement: {event.title}', body_html, accent='#6c47ff')
+    sent = 0
+    for reg in registrations:
+        if reg.student.email:
+            ok = _send_html_email(
+                subject=f'[{event.title}] {subject}',
+                to_email=reg.student.email,
+                html_content=html,
+            )
+            if ok:
+                sent += 1
+    return sent

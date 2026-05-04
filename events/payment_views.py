@@ -208,3 +208,20 @@ def payment_history(request):
         student=request.user
     ).select_related('event').order_by('-created_at')
     return render(request, 'events/payment_history.html', {'payments': payments})
+
+
+@login_required
+def download_receipt(request, payment_id):
+    """F4: Download a PDF payment receipt for a completed payment."""
+    from django.http import HttpResponse
+    from .utils import generate_payment_receipt
+
+    payment = get_object_or_404(Payment, pk=payment_id, student=request.user, status='completed')
+    pdf_bytes = generate_payment_receipt(payment)
+    if pdf_bytes:
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        safe_title = payment.event.title.replace(' ', '_')[:30]
+        response['Content-Disposition'] = f'attachment; filename="receipt_{safe_title}.pdf"'
+        return response
+    messages.error(request, 'Could not generate receipt. Please try again.')
+    return redirect('payment_history')

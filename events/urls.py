@@ -7,15 +7,19 @@ urlpatterns = [
     path('', views.event_list, name='event_list'),
     path('<int:pk>/', views.event_detail, name='event_detail'),
 
+    # F5: Live AJAX search API
+    path('search/api/', views.event_search_api, name='event_search_api'),
+
     # Free event registration
     path('<int:pk>/register/', views.register_for_event, name='register_for_event'),
     path('cancel/<int:pk>/', views.cancel_registration, name='cancel_registration'),
 
-    # ── PAYMENT ROUTES ────────────────────────────────────────────────
+    # PAYMENT ROUTES
     path('<int:event_pk>/pay/', payment_views.initiate_payment, name='initiate_payment'),
     path('payment/verify/', payment_views.verify_payment, name='verify_payment'),
     path('<int:event_pk>/payment-failed/', payment_views.payment_failed, name='payment_failed'),
     path('payment/history/', payment_views.payment_history, name='payment_history'),
+    path('payment/<int:payment_id>/receipt/', payment_views.download_receipt, name='download_receipt'),  # F4
 
     # Feedback
     path('<int:pk>/feedback/', views.submit_feedback, name='submit_feedback'),
@@ -39,4 +43,23 @@ urlpatterns = [
     path('notifications/', views.notifications_api, name='notifications_api'),
     path('notifications/<int:pk>/read/', views.mark_notification_read, name='mark_notification_read'),
     path('notifications/all/', views.all_notifications, name='all_notifications'),
+
+    # F2: ICS Calendar Export
+    path('<int:pk>/export-ics/', views.export_ics, name='export_ics'),
+
+    # F3: Wishlist / Bookmark
+    path('<int:pk>/wishlist/', views.toggle_wishlist, name='toggle_wishlist'),
+
+    # F8: Event Gallery
+    path('<int:pk>/gallery/', views.event_gallery, name='event_gallery'),
+    path('<int:pk>/gallery/upload/', views.upload_gallery_photo, name='upload_gallery_photo'),
+    path('gallery/delete/<int:photo_id>/', views.delete_gallery_photo, name='delete_gallery_photo'),
+
+    # F9: Q&A
+    path('<int:pk>/ask/', views.ask_question, name='ask_question'),
+    path('<int:pk>/answer/<int:qid>/', views.answer_question, name='answer_question'),
+
+    # F11: Team Registration
+    path('<int:pk>/team/create/', views.create_team, name='create_team'),
+    path('<int:pk>/team/join/', views.join_team, name='join_team'),
 ]

@@ -1,5 +1,6 @@
 """
 Events app models - Event, Registration, Feedback, Certificate, Payment
++ New: Wishlist (F3), EventPhoto (F8), EventQuestion (F9), Team (F11)
 """
 from django.db import models
 from django.conf import settings
@@ -73,6 +74,14 @@ class Event(models.Model):
         help_text='Fee in INR (0 = free)'
     )
 
+    # ── F11: TEAM EVENT FIELDS ───────────────────────────────────────────
+    team_event = models.BooleanField(default=False, help_text='Require team registration?')
+    min_team_size = models.PositiveIntegerField(default=2)
+    max_team_size = models.PositiveIntegerField(default=5)
+
+    # ── F10: BULK EMAIL THROTTLE ─────────────────────────────────────────
+    last_bulk_email_at = models.DateTimeField(null=True, blank=True)
+
     def __str__(self):
         return f"{self.title} ({self.date})"
 
@@ -129,13 +138,12 @@ class Payment(models.Model):
     )
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='payments')
 
-    # Razorpay IDs
     razorpay_order_id   = models.CharField(max_length=100, blank=True)
     razorpay_payment_id = models.CharField(max_length=100, blank=True)
     razorpay_signature  = models.CharField(max_length=200, blank=True)
 
-    amount       = models.DecimalField(max_digits=8, decimal_places=2)   # in INR
-    amount_paise = models.IntegerField(default=0)                         # for Razorpay API
+    amount       = models.DecimalField(max_digits=8, decimal_places=2)
+    amount_paise = models.IntegerField(default=0)
     currency     = models.CharField(max_length=5, default='INR')
     status       = models.CharField(max_length=20, choices=STATUS_CHOICES, default='created')
 
@@ -143,11 +151,35 @@ class Payment(models.Model):
     updated_at  = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Payment ₹{self.amount} by {self.student.username} for {self.event.title} [{self.status}]"
+        return f"Payment Rs.{self.amount} by {self.student.username} for {self.event.title} [{self.status}]"
 
     @property
     def is_successful(self):
         return self.status == 'completed'
+
+
+# ── F11: Team Model ───────────────────────────────────────────────────────────
+
+class Team(models.Model):
+    """A team for team-based event registration."""
+    event  = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='teams')
+    leader = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='led_teams'
+    )
+    name       = models.CharField(max_length=100)
+    code       = models.CharField(max_length=8, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Team '{self.name}' for {self.event.title}"
+
+    @property
+    def member_count(self):
+        return self.registrations.count()
+
+    @property
+    def is_full(self):
+        return self.member_count >= self.event.max_team_size
 
 
 class Registration(models.Model):
@@ -162,27 +194,30 @@ class Registration(models.Model):
     registered_at = models.DateTimeField(auto_now_add=True)
     attended = models.BooleanField(default=False)
 
-    # Payment link (null for free events)
     payment = models.OneToOneField(
         Payment, null=True, blank=True,
         on_delete=models.SET_NULL,
         related_name='registration'
     )
 
-    # QR code for attendance
-    qr_code   = models.ImageField(upload_to='qrcodes/', blank=True, null=True)
-    qr_token  = models.CharField(max_length=100, unique=True, blank=True)
+    qr_code  = models.ImageField(upload_to='qrcodes/', blank=True, null=True)
+    qr_token = models.CharField(max_length=100, unique=True, blank=True)
 
-    # Certificate
     certificate      = models.FileField(upload_to='certificates/', blank=True, null=True)
     certificate_sent = models.BooleanField(default=False)
+
+    # F11: Team link
+    team = models.ForeignKey(
+        Team, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='registrations'
+    )
 
     class Meta:
         unique_together = ('event', 'student')
         ordering = ['-registered_at']
 
     def __str__(self):
-        return f"{self.student.username} → {self.event.title}"
+        return f"{self.student.username} -> {self.event.title}"
 
     def generate_qr_code(self):
         """Generate a unique QR code for this registration."""
@@ -255,7 +290,7 @@ class Notification(models.Model):
     message           = models.TextField()
     notification_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='general')
     is_read           = models.BooleanField(default=False)
-    link              = models.CharField(max_length=300, blank=True)   # optional click-through URL
+    link              = models.CharField(max_length=300, blank=True)
     created_at        = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -266,10 +301,7 @@ class Notification(models.Model):
 
 
 class SliderItem(models.Model):
-    """
-    Homepage slider item — managed entirely by admin.
-    Can be linked to an existing event OR be a standalone image/poster.
-    """
+    """Homepage slider item."""
     TYPE_CHOICES = [
         ('upcoming',  'Upcoming Event'),
         ('past',      'Past Event Highlight'),
@@ -279,35 +311,20 @@ class SliderItem(models.Model):
     ]
 
     title       = models.CharField(max_length=200)
-    subtitle    = models.CharField(max_length=300, blank=True,
-                                   help_text='Short tagline shown under the title')
-    image       = models.ImageField(upload_to='slider/',
-                                    help_text='Recommended: 1400×500 px wide banner')
-
+    subtitle    = models.CharField(max_length=300, blank=True)
+    image       = models.ImageField(upload_to='slider/')
     slide_type  = models.CharField(max_length=20, choices=TYPE_CHOICES, default='upcoming')
-
-    # Optional link to an existing Event
     linked_event = models.ForeignKey(
         Event, null=True, blank=True,
         on_delete=models.SET_NULL,
         related_name='slider_items',
-        help_text='Link to an event page (optional)'
     )
-
-    # Optional custom CTA button
-    cta_text    = models.CharField(max_length=60, blank=True, default='Learn More',
-                                   help_text='Button label, e.g. "Register Now"')
-    cta_url     = models.CharField(max_length=300, blank=True,
-                                   help_text='Override URL (leave blank to use linked event URL)')
-
-    # Overlay text colour
-    TEXT_COLOR_CHOICES = [('light', 'White text (dark image)'), ('dark', 'Dark text (light image)')]
+    cta_text    = models.CharField(max_length=60, blank=True, default='Learn More')
+    cta_url     = models.CharField(max_length=300, blank=True)
+    TEXT_COLOR_CHOICES = [('light', 'White text'), ('dark', 'Dark text')]
     text_color  = models.CharField(max_length=10, choices=TEXT_COLOR_CHOICES, default='light')
-
-    is_active   = models.BooleanField(default=True, help_text='Show on homepage slider')
-    order       = models.PositiveIntegerField(default=0,
-                                              help_text='Lower = shown first (0, 1, 2 …)')
-
+    is_active   = models.BooleanField(default=True)
+    order       = models.PositiveIntegerField(default=0)
     created_at  = models.DateTimeField(auto_now_add=True)
     updated_at  = models.DateTimeField(auto_now=True)
     created_by  = models.ForeignKey(
@@ -320,13 +337,67 @@ class SliderItem(models.Model):
         ordering = ['order', '-created_at']
 
     def __str__(self):
-        return f"[{self.get_slide_type_display()}] {self.title} (order={self.order})"
+        return f"[{self.get_slide_type_display()}] {self.title}"
 
     @property
     def final_cta_url(self):
-        """Return the effective CTA URL."""
         if self.cta_url:
             return self.cta_url
         if self.linked_event:
             return f'/events/{self.linked_event.pk}/'
         return '/events/'
+
+
+# ── F3: Wishlist ──────────────────────────────────────────────────────────────
+
+class Wishlist(models.Model):
+    """Students can bookmark/wishlist events."""
+    user       = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='wishlist')
+    event      = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='wishlisted_by')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'event')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} wishlist -> {self.event.title}"
+
+
+# ── F8: Event Gallery ─────────────────────────────────────────────────────────
+
+class EventPhoto(models.Model):
+    """Photos uploaded to an event gallery."""
+    event       = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='photos')
+    image       = models.ImageField(upload_to='gallery/')
+    caption     = models.CharField(max_length=200, blank=True)
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        return f"Photo for {self.event.title}"
+
+
+# ── F9: Event Q&A ─────────────────────────────────────────────────────────────
+
+class EventQuestion(models.Model):
+    """Q&A wall for events."""
+    event       = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='questions')
+    asker       = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='event_questions')
+    question    = models.TextField()
+    answer      = models.TextField(blank=True)
+    answered_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='event_answers'
+    )
+    created_at  = models.DateTimeField(auto_now_add=True)
+    answered_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Q on {self.event.title} by {self.asker.username}"

@@ -1,5 +1,5 @@
 """
-Events app forms - fixed validation, proper error handling
+Events app forms - EventForm, FeedbackForm, EventSearchForm (enhanced F5)
 """
 from django import forms
 from django.utils import timezone
@@ -7,7 +7,7 @@ from .models import Event, Feedback
 
 
 class EventForm(forms.ModelForm):
-    """Form for creating/editing events. All fields validated server-side."""
+    """Form for creating/editing events."""
 
     date = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
@@ -18,19 +18,27 @@ class EventForm(forms.ModelForm):
     end_time = forms.TimeField(
         widget=forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
     )
-    # Make is_paid and fee optional at the form level — validate in clean()
     is_paid = forms.BooleanField(required=False)
     registration_fee = forms.DecimalField(
         required=False, min_value=0,
         widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '0'}),
     )
-    # Make certificate_template optional
     certificate_template = forms.CharField(
         required=False,
         widget=forms.Textarea(attrs={
             'class': 'form-control', 'rows': 2,
             'placeholder': 'This is to certify that {student_name} participated in {event_name} on {event_date}.'
         }),
+    )
+    # F11: team fields
+    team_event = forms.BooleanField(required=False)
+    min_team_size = forms.IntegerField(
+        required=False, min_value=2, initial=2,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': 2}),
+    )
+    max_team_size = forms.IntegerField(
+        required=False, min_value=2, initial=5,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': 2}),
     )
 
     class Meta:
@@ -40,6 +48,7 @@ class EventForm(forms.ModelForm):
             'date', 'start_time', 'end_time',
             'venue', 'max_capacity', 'poster',
             'is_paid', 'registration_fee', 'certificate_template',
+            'team_event', 'min_team_size', 'max_team_size',
         ]
         widgets = {
             'title': forms.TextInput(attrs={
@@ -69,39 +78,35 @@ class EventForm(forms.ModelForm):
         venue      = cleaned.get('venue', '').strip()
         is_paid    = cleaned.get('is_paid', False)
         fee        = cleaned.get('registration_fee')
+        team_event = cleaned.get('team_event', False)
+        min_size   = cleaned.get('min_team_size') or 2
+        max_size   = cleaned.get('max_team_size') or 5
 
-        # 1. End time must be after start time
         if start_time and end_time and end_time <= start_time:
             self.add_error('end_time', 'End time must be after start time.')
 
-        # 2. Paid event must have a fee > 0
         if is_paid and (fee is None or fee <= 0):
-            self.add_error('registration_fee',
-                           'Please enter a registration fee greater than ₹0 for a paid event.')
+            self.add_error('registration_fee', 'Please enter a fee > 0 for a paid event.')
 
-        # 3. Free event: zero out the fee
         if not is_paid:
             cleaned['registration_fee'] = 0
 
-        # 4. Date must not be in the past
         if date and date < timezone.now().date():
             self.add_error('date', 'Event date cannot be in the past.')
 
-        # 5. Venue clash detection
+        if team_event and min_size > max_size:
+            self.add_error('max_team_size', 'Max team size must be >= min team size.')
+
         if date and start_time and end_time and venue:
             clashing = Event.objects.filter(
-                date=date,
-                venue__iexact=venue,
-                status__in=['approved', 'pending'],
+                date=date, venue__iexact=venue, status__in=['approved', 'pending'],
             )
             if self.instance.pk:
                 clashing = clashing.exclude(pk=self.instance.pk)
-
             for ev in clashing:
-                # Time overlap check
                 if not (end_time <= ev.start_time or start_time >= ev.end_time):
                     self.add_error(None,
-                        f'⚠️ Venue clash: "{ev.title}" is already at {venue} '
+                        f'Venue clash: "{ev.title}" is already at {venue} '
                         f'from {ev.start_time.strftime("%I:%M %p")} to '
                         f'{ev.end_time.strftime("%I:%M %p")} on {date.strftime("%b %d")}.'
                     )
@@ -110,7 +115,6 @@ class EventForm(forms.ModelForm):
 
     def save(self, commit=True):
         event = super().save(commit=False)
-        # Default certificate template if left blank
         if not event.certificate_template:
             event.certificate_template = (
                 'This is to certify that {student_name} has successfully '
@@ -123,7 +127,6 @@ class EventForm(forms.ModelForm):
 
 class FeedbackForm(forms.ModelForm):
     """Form for event feedback."""
-
     rating = forms.ChoiceField(
         choices=[(i, f'{i} Star{"s" if i > 1 else ""}') for i in range(1, 6)],
         widget=forms.RadioSelect(attrs={'class': 'star-rating-input'}),
@@ -134,23 +137,25 @@ class FeedbackForm(forms.ModelForm):
         fields = ['rating', 'comment']
         widgets = {
             'comment': forms.Textarea(attrs={
-                'rows': 3,
-                'placeholder': 'Share your experience...',
-                'class': 'form-control',
+                'rows': 3, 'placeholder': 'Share your experience...', 'class': 'form-control',
             }),
         }
 
 
 class EventSearchForm(forms.Form):
-    """Event search and filter form."""
+    """Enhanced event search and filter form (F5)."""
 
     CATEGORY_CHOICES = [('', 'All Categories')] + Event.CATEGORY_CHOICES
+    PAID_CHOICES = [('', 'All Events'), ('free', 'Free Only'), ('paid', 'Paid Only')]
+    SORT_CHOICES = [('date', 'By Date'), ('popular', 'Most Popular'), ('az', 'A-Z')]
 
     search = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': '🔍 Search events...',
+            'placeholder': 'Search events...',
+            'id': 'eventSearchInput',
+            'autocomplete': 'off',
         }),
     )
     category  = forms.ChoiceField(choices=CATEGORY_CHOICES, required=False,
@@ -159,3 +164,7 @@ class EventSearchForm(forms.Form):
                                  widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}))
     date_to   = forms.DateField(required=False,
                                  widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}))
+    is_paid   = forms.ChoiceField(choices=PAID_CHOICES, required=False,
+                                   widget=forms.Select(attrs={'class': 'form-select'}))
+    sort_by   = forms.ChoiceField(choices=SORT_CHOICES, required=False,
+                                   widget=forms.Select(attrs={'class': 'form-select'}))

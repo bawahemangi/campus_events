@@ -1,6 +1,6 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -35,14 +35,128 @@
       --glass-bg: rgba(255, 255, 255, 0.75);
       --glass-border: rgba(255, 255, 255, 0.5);
     }
+
+    /* ── Dark Mode Variables ── */
+    [data-theme="dark"] {
+      --card-bg: rgba(22, 27, 58, 0.95);
+      --glass-bg: rgba(22, 27, 58, 0.80);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --border: rgba(255, 255, 255, 0.08);
+      --shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+      --shadow-hover: 0 20px 50px rgba(108, 71, 255, 0.25);
+    }
+    [data-theme="dark"] body {
+      background: linear-gradient(135deg, #080c1f 0%, #0d1235 100%);
+    }
+    [data-theme="dark"] .dropdown-menu {
+      background: rgba(18, 23, 50, 0.98) !important;
+      border-color: rgba(255,255,255,0.1) !important;
+    }
+    [data-theme="dark"] .dropdown-item {
+      color: #cbd5e1 !important;
+    }
+    [data-theme="dark"] .dropdown-item:hover {
+      background: rgba(108,71,255,0.15) !important;
+      color: #fff !important;
+    }
+    [data-theme="dark"] .card {
+      background: var(--card-bg);
+      border-color: rgba(255,255,255,0.07);
+    }
+    [data-theme="dark"] .card-header {
+      background: rgba(108, 71, 255, 0.07);
+      border-bottom-color: rgba(255,255,255,0.07);
+    }
+    [data-theme="dark"] .table thead th {
+      background: rgba(22, 27, 58, 0.8);
+      color: #94a3b8;
+    }
+    [data-theme="dark"] .table tbody tr:hover {
+      background: rgba(108,71,255,0.07);
+    }
+    [data-theme="dark"] .form-control,
+    [data-theme="dark"] .form-select {
+      background: rgba(15, 20, 45, 0.9);
+      border-color: rgba(255,255,255,0.1);
+      color: #e2e8f0;
+    }
+    [data-theme="dark"] .form-control:focus,
+    [data-theme="dark"] .form-select:focus {
+      background: rgba(15, 20, 45, 0.95);
+      color: #e2e8f0;
+    }
+    [data-theme="dark"] .form-control::placeholder { color: #64748b; }
+    [data-theme="dark"] .notif-dropdown {
+      background: #0f1432 !important;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    [data-theme="dark"] .notif-item {
+      border-bottom-color: rgba(255,255,255,0.07);
+    }
+    [data-theme="dark"] .notif-item .notif-title { color: #e2e8f0; }
+    [data-theme="dark"] footer {
+      background: #06091a;
+    }
+    [data-theme="dark"] .list-group-item {
+      background: rgba(22,27,58,0.95);
+      border-color: rgba(255,255,255,0.07);
+      color: #e2e8f0;
+    }
+    [data-theme="dark"] .list-group-item:hover {
+      background: rgba(108,71,255,0.12);
+    }
+    [data-theme="dark"] #chatbot-window {
+      background: rgba(10, 13, 35, 0.97);
+      border-color: rgba(255,255,255,0.08);
+    }
+    [data-theme="dark"] .chat-body {
+      background: rgba(5,8,22,0.6);
+    }
+    [data-theme="dark"] .msg-bot {
+      background: rgba(22,27,58,0.98);
+      color: #e2e8f0;
+    }
+    [data-theme="dark"] .chat-footer {
+      background: #0d1235;
+      border-top-color: rgba(255,255,255,0.07);
+    }
+    [data-theme="dark"] .chat-input {
+      background: rgba(5,8,22,0.8);
+      color: #e2e8f0;
+    }
+    [data-theme="dark"] .text-dark { color: #e2e8f0 !important; }
+    [data-theme="dark"] .text-muted { color: #64748b !important; }
+    [data-theme="dark"] .border-bottom { border-color: rgba(255,255,255,0.07) !important; }
+    [data-theme="dark"] .fw-bold, [data-theme="dark"] .fw-semibold { color: #e2e8f0; }
+
+    /* Dark mode toggle button */
+    #darkToggle {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.85);
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all 0.3s ease;
+      font-size: 1rem;
+    }
+    #darkToggle:hover {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      transform: rotate(15deg) scale(1.1);
+    }
+
     * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
+    html { scroll-behavior: smooth; transition: background 0.3s ease, color 0.3s ease; }
     body {
       font-family: 'DM Sans', sans-serif;
       background: linear-gradient(135deg, #f8f9ff 0%, #f1f4ff 100%);
       color: var(--text);
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
+      transition: background 0.3s ease, color 0.3s ease;
     }
     h1,h2,h3,h4,h5,h6,.brand { font-family: 'Syne', sans-serif; font-weight: 700; }
 
@@ -130,6 +244,35 @@
       width: 18px; height: 18px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
     }
+
+    /* Bell pulse ring animation — fires when new notifications arrive */
+    .bell-pulse-ring {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: 2px solid var(--accent);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .bell-has-notifs .bell-pulse-ring {
+      animation: bellRing 2s ease-out infinite;
+    }
+    .bell-has-notifs .fa-bell {
+      animation: bellShake 2s ease-in-out infinite;
+    }
+    @keyframes bellRing {
+      0%   { transform: translate(-50%,-50%) scale(0.6); opacity: 0.8; }
+      70%  { transform: translate(-50%,-50%) scale(1.6); opacity: 0; }
+      100% { transform: translate(-50%,-50%) scale(1.6); opacity: 0; }
+    }
+    @keyframes bellShake {
+      0%,100% { transform: rotate(0deg); }
+      10%,30%  { transform: rotate(-12deg); }
+      20%,40%  { transform: rotate(12deg); }
+      50%      { transform: rotate(0deg); }
+    }
+
     .notif-dropdown {
       position: absolute; right: 0; top: calc(100% + 10px);
       background: #fff; border-radius: var(--radius);
@@ -140,8 +283,9 @@
     .notif-dropdown.show { display: block; }
     .notif-item {
       padding: .75rem 1rem; border-bottom: 1px solid var(--border);
-      font-size: .85rem;
+      font-size: .85rem; transition: background 0.2s;
     }
+    .notif-item:hover { background: rgba(108,71,255,0.04); }
     .notif-item:last-child { border-bottom: none; }
     .notif-item .notif-title { font-weight: 600; color: var(--text); }
     .notif-item .notif-time  { font-size: .75rem; color: var(--muted); }
@@ -484,8 +628,15 @@
 
   <!-- Right side -->
   <div class="d-flex align-items-center gap-3">
+
+    <!-- Dark Mode Toggle -->
+    <button id="darkToggle" title="Toggle dark mode" aria-label="Toggle dark mode">
+      <i class="fa fa-moon" id="darkIcon"></i>
+    </button>
+
     <!-- Notification Bell -->
     <div class="notif-bell position-relative" id="notifBell">
+      <div class="bell-pulse-ring" id="bellPulseRing"></div>
       <i class="fa fa-bell text-white fs-5"></i>
       <span class="notif-count" id="notifCount" style="display:none">0</span>
       <div class="notif-dropdown" id="notifDropdown">
@@ -556,28 +707,60 @@ const dropdown = document.getElementById('notifDropdown');
 const countBadge = document.getElementById('notifCount');
 const listEl = document.getElementById('notifList');
 
+let prevNotifCount = 0;
+
 function loadNotifications() {
   fetch('/events/notifications/')
     .then(r => r.json())
     .then(data => {
-      if (data.count > 0) {
+      const hasNew = data.count > 0;
+
+      // ── Bell pulse animation ──
+      if (hasNew) {
         countBadge.style.display = 'flex';
         countBadge.textContent = data.count;
+        bell.classList.add('bell-has-notifs');
+        // Extra shake burst when count increases
+        if (data.count > prevNotifCount) {
+          bell.style.animation = 'none';
+          void bell.offsetWidth; // reflow
+          bell.style.animation = '';
+        }
       } else {
         countBadge.style.display = 'none';
+        bell.classList.remove('bell-has-notifs');
       }
+      prevNotifCount = data.count;
+
       if (data.notifications.length === 0) {
-        listEl.innerHTML = '<div class="p-3 text-muted text-center">No new notifications</div>';
+        listEl.innerHTML = '<div class="p-3 text-muted text-center"><i class="fa fa-bell-slash me-2"></i>No new notifications</div>';
       } else {
-        listEl.innerHTML = data.notifications.map(n => `
-          <div class="notif-item" data-id="${n.id}" data-link="${n.link || ''}">
-            <div class="notif-title">${n.title}</div>
-            <div>${n.message.substring(0,80)}${n.message.length > 80 ? '...' : ''}</div>
-            <div class="notif-time mt-1"><i class="fa fa-clock me-1"></i>${n.created_at}</div>
-          </div>`).join('');
+        // Icon map by type
+        const icons = {
+          registration: 'fa-calendar-check text-primary',
+          payment:      'fa-credit-card text-success',
+          reminder:     'fa-clock text-warning',
+          approval:     'fa-circle-check text-success',
+          rejection:    'fa-circle-xmark text-danger',
+          certificate:  'fa-certificate text-warning',
+          general:      'fa-bell text-primary',
+        };
+        listEl.innerHTML = data.notifications.map(n => {
+          const iconClass = icons[n.type] || 'fa-bell text-primary';
+          return `
+          <div class="notif-item d-flex gap-3 align-items-start" data-id="${n.id}" data-link="${n.link || ''}" style="cursor:pointer">
+            <div style="width:32px;height:32px;border-radius:8px;background:rgba(108,71,255,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px">
+              <i class="fa ${iconClass}" style="font-size:.8rem"></i>
+            </div>
+            <div class="flex-grow-1 min-w-0">
+              <div class="notif-title">${n.title}</div>
+              <div class="text-muted" style="font-size:.8rem;line-height:1.3">${n.message.substring(0,80)}${n.message.length > 80 ? '...' : ''}</div>
+              <div class="notif-time mt-1"><i class="fa fa-clock me-1"></i>${n.created_at}</div>
+            </div>
+          </div>`;
+        }).join('');
         // Mark as read on click
         listEl.querySelectorAll('.notif-item').forEach(el => {
-          el.style.cursor = 'pointer';
           el.addEventListener('click', () => {
             fetch(`/events/notifications/${el.dataset.id}/read/`, {method:'POST', headers:{'X-CSRFToken': getCookie('csrftoken')}})
               .then(() => {
@@ -603,6 +786,40 @@ function getCookie(name) {
   const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
   return v ? v[2] : null;
 }
+</script>
+
+<!-- ── Dark Mode JS ── -->
+<script>
+(function() {
+  const html = document.documentElement;
+  const btn  = document.getElementById('darkToggle');
+  const icon = document.getElementById('darkIcon');
+
+  function applyTheme(theme) {
+    html.setAttribute('data-theme', theme);
+    if (theme === 'dark') {
+      icon.className = 'fa fa-sun';
+      btn.title = 'Switch to light mode';
+    } else {
+      icon.className = 'fa fa-moon';
+      btn.title = 'Switch to dark mode';
+    }
+  }
+
+  // Load saved preference
+  const saved = localStorage.getItem('ceTheme') || 'light';
+  applyTheme(saved);
+
+  btn.addEventListener('click', () => {
+    const current = html.getAttribute('data-theme');
+    const next = current === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('ceTheme', next);
+    // Animate the button icon
+    btn.style.transform = 'rotate(360deg) scale(1.2)';
+    setTimeout(() => { btn.style.transform = ''; }, 300);
+    applyTheme(next);
+  });
+})();
 </script>
 {% endif %}
 {% block extra_js %}{% endblock %}

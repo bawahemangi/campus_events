@@ -1,5 +1,74 @@
 {% extends 'base.html' %}
 {% block title %}My Dashboard — CampusEvents{% endblock %}
+{% block extra_css %}
+<style>
+  .stat-counter { transition: all 0.4s ease; }
+
+  /* Progress card */
+  .progress-card {
+    background: linear-gradient(135deg, #0a0e27 0%, #1a1260 50%, #6c47ff 100%);
+    border-radius: 24px; padding: 2rem;
+    color: #fff; position: relative; overflow: hidden;
+    border: none; margin-bottom: 1.5rem;
+  }
+  .progress-card::before {
+    content: '';
+    position: absolute; top: -60px; right: -60px;
+    width: 200px; height: 200px; border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+  }
+  .progress-card::after {
+    content: '';
+    position: absolute; bottom: -80px; left: -30px;
+    width: 250px; height: 250px; border-radius: 50%;
+    background: rgba(108,71,255,0.2);
+  }
+
+  .activity-ring {
+    width: 90px; height: 90px; flex-shrink: 0;
+  }
+
+  .badge-progress-bar {
+    height: 8px; border-radius: 4px;
+    background: rgba(255,255,255,0.15);
+    overflow: hidden;
+  }
+  .badge-progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #ffd93d, #ff6b6b);
+    transition: width 1.5s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  .mini-stat {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 16px; padding: 1rem;
+    text-align: center;
+    backdrop-filter: blur(10px);
+  }
+  .mini-stat .ms-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 2rem; font-weight: 800; line-height: 1;
+  }
+  .mini-stat .ms-label { font-size: .75rem; opacity: .75; margin-top: 3px; }
+
+  .stat-card { animation: statCardIn 0.5s cubic-bezier(0.23, 1, 0.32, 1) both; }
+  .stat-card:nth-child(1) { animation-delay: 0.05s; }
+  .stat-card:nth-child(2) { animation-delay: 0.15s; }
+  .stat-card:nth-child(3) { animation-delay: 0.25s; }
+  .stat-card:nth-child(4) { animation-delay: 0.35s; }
+  @keyframes statCardIn {
+    from { opacity: 0; transform: translateY(24px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* Dark mode overrides for progress card */
+  [data-theme="dark"] .progress-card {
+    background: linear-gradient(135deg, #030510 0%, #0d0b3a 50%, #4a2fb5 100%);
+  }
+</style>
+{% endblock %}
 {% block content %}
 <div class="page-header">
   <div class="container">
@@ -9,7 +78,126 @@
 </div>
 
 <div class="container pb-5">
-  <!-- Stats Row -->
+
+  <!-- ── Rich Progress Stats Card ── -->
+  <div class="progress-card mb-4" style="position:relative;z-index:1">
+    <div class="row g-3 align-items-center" style="position:relative;z-index:2">
+
+      <!-- Left: Activity Ring + Name -->
+      <div class="col-md-3 d-flex flex-column align-items-center justify-content-center text-center">
+        <!-- SVG Activity Ring -->
+        <svg class="activity-ring mb-3" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="10"/>
+          {% with pct=attended_count|floatformat:0 %}
+          <circle id="activityCircle" cx="50" cy="50" r="40" fill="none" stroke="url(#ringGrad)" stroke-width="10"
+            stroke-dasharray="251.2" stroke-dashoffset="251.2"
+            stroke-linecap="round" transform="rotate(-90 50 50)"/>
+          {% endwith %}
+          <defs>
+            <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#ffd93d"/>
+              <stop offset="100%" stop-color="#ff6b6b"/>
+            </linearGradient>
+          </defs>
+          <text x="50" y="46" text-anchor="middle" fill="white" font-size="18" font-weight="800" font-family="Syne,sans-serif">
+            {{ attended_count }}
+          </text>
+          <text x="50" y="60" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="9" font-family="DM Sans,sans-serif">
+            attended
+          </text>
+        </svg>
+        <div style="font-size:.75rem;opacity:.7">Activity Score</div>
+        <div style="font-size:1.6rem;font-weight:800;font-family:'Syne',sans-serif;line-height:1">
+          {% widthratio attended_count 1 10 %}0
+        </div>
+        <div style="font-size:.7rem;opacity:.6">XP Points</div>
+      </div>
+
+      <!-- Middle: Mini Stats Grid -->
+      <div class="col-md-5">
+        <div class="row g-2">
+          <div class="col-6">
+            <div class="mini-stat">
+              <div class="ms-value" id="cntRegistered" data-target="{{ total_registered }}">0</div>
+              <div class="ms-label"><i class="fa fa-calendar-check me-1"></i>Registered</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="mini-stat">
+              <div class="ms-value" id="cntAttended" data-target="{{ attended_count }}">0</div>
+              <div class="ms-label"><i class="fa fa-check-double me-1"></i>Attended</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="mini-stat">
+              <div class="ms-value" id="cntPoints" data-target="{{ points }}">0</div>
+              <div class="ms-label"><i class="fa fa-star me-1"></i>Points</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="mini-stat">
+              <div class="ms-value">#{{ rank }}</div>
+              <div class="ms-label"><i class="fa fa-trophy me-1"></i>Rank</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Next Badge Progress -->
+      <div class="col-md-4">
+        <div style="background:rgba(255,255,255,0.07);border-radius:16px;padding:1.25rem;border:1px solid rgba(255,255,255,0.1)">
+          <div class="d-flex align-items-center gap-2 mb-3">
+            <i class="fa fa-medal" style="color:#ffd93d;font-size:1.1rem"></i>
+            <span style="font-weight:700;font-size:.9rem">Next Badge</span>
+          </div>
+
+          {% if points < 10 %}
+            <div class="d-flex justify-content-between mb-1" style="font-size:.8rem">
+              <span>First Step</span><span style="opacity:.7">{{ points }}/10 pts</span>
+            </div>
+            <div class="badge-progress-bar">
+              <div class="badge-progress-fill" id="badgeFill" style="width:0%" data-pct="{% widthratio points 10 100 %}"></div>
+            </div>
+            <div class="mt-2" style="font-size:.75rem;opacity:.65">Register for your first event to unlock 🌱</div>
+          {% elif points < 30 %}
+            <div class="d-flex justify-content-between mb-1" style="font-size:.8rem">
+              <span>Explorer 🧭</span><span style="opacity:.7">{{ attended_count }}/3 events</span>
+            </div>
+            <div class="badge-progress-bar">
+              <div class="badge-progress-fill" id="badgeFill" style="width:0%" data-pct="{% widthratio attended_count 3 100 %}"></div>
+            </div>
+            <div class="mt-2" style="font-size:.75rem;opacity:.65">Attend 3 events to unlock Explorer 🧭</div>
+          {% elif points < 100 %}
+            <div class="d-flex justify-content-between mb-1" style="font-size:.8rem">
+              <span>Pro Crown 👑</span><span style="opacity:.7">{{ points }}/100 pts</span>
+            </div>
+            <div class="badge-progress-bar">
+              <div class="badge-progress-fill" id="badgeFill" style="width:0%" data-pct="{% widthratio points 100 100 %}"></div>
+            </div>
+            <div class="mt-2" style="font-size:.75rem;opacity:.65">Earn 100 points to unlock Pro 👑</div>
+          {% else %}
+            <div class="text-center" style="padding:.5rem 0">
+              <i class="fa fa-crown" style="color:#ffd93d;font-size:2rem"></i>
+              <div class="mt-2" style="font-weight:700">All Badges Unlocked!</div>
+              <div style="font-size:.75rem;opacity:.65">You're a Campus Legend 🎉</div>
+            </div>
+          {% endif %}
+
+          <div class="mt-3 pt-3" style="border-top:1px solid rgba(255,255,255,0.1);font-size:.75rem;opacity:.7">
+            <i class="fa fa-chart-line me-1"></i>
+            {% if total_registered > 0 %}
+              {% widthratio attended_count total_registered 100 %}% attendance rate
+            {% else %}
+              No events yet — start exploring!
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Compact Stat Cards (kept for quick visual reference) -->
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
       <div class="stat-card stat-purple text-center">
@@ -253,4 +441,52 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── Animated Counters ──
+function animateCounter(el, target, duration = 1200) {
+  const start = performance.now();
+  const update = (now) => {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    // Ease out cubic
+    const eased = 1 - Math.pow(1 - progress, 3);
+    el.textContent = Math.round(eased * target);
+    if (progress < 1) requestAnimationFrame(update);
+  };
+  requestAnimationFrame(update);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Counters
+  ['cntRegistered', 'cntAttended', 'cntPoints'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) animateCounter(el, parseInt(el.dataset.target || '0'));
+  });
+
+  // Activity ring animation
+  const circle = document.getElementById('activityCircle');
+  if (circle) {
+    const attended = {{ attended_count }};
+    const maxTarget = 20; // ring fills completely at 20 attended events
+    const pct = Math.min(attended / maxTarget, 1);
+    const circumference = 251.2;
+    const offset = circumference - pct * circumference;
+    // Animate from full offset (empty) to target offset
+    setTimeout(() => {
+      circle.style.transition = 'stroke-dashoffset 1.8s cubic-bezier(0.23, 1, 0.32, 1)';
+      circle.style.strokeDashoffset = offset;
+    }, 300);
+  }
+
+  // Badge progress bar animation
+  const fill = document.getElementById('badgeFill');
+  if (fill) {
+    const pct = Math.min(parseInt(fill.dataset.pct || '0'), 100);
+    setTimeout(() => { fill.style.width = pct + '%'; }, 400);
+  }
+});
+</script>
 {% endblock %}
